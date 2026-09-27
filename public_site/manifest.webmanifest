@@ -1,0 +1,14 @@
+{
+  "name": "Le Weilai · 点单与出菜",
+  "short_name": "Le Weilai",
+  "description": "餐厅点单、厨房与出菜口协同演示系统",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101411",
+  "theme_color": "#121614",
+  "icons": [
+    {"src":"./favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
