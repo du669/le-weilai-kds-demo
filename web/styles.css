@@ -51,12 +51,6 @@ a { color: var(--green); }
 .paris-clock-label b { color: rgba(246,255,248,.96); font-size: 9px; font-weight: 850; letter-spacing: .16em; }
 .paris-clock-label small { color: rgba(211,231,216,.67); font-size: 7px; letter-spacing: .12em; }
 .paris-clock-time { color: #fff; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: .035em; }
-.paris-clock { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 6px 12px 6px 10px; border: 1px solid rgba(255,255,255,.13); border-radius: 12px; background: radial-gradient(circle at 18% 0%, rgba(114,174,135,.25), transparent 42%), linear-gradient(135deg, #193f2e, #10281e); color: #f5fff7; box-shadow: 0 7px 20px rgba(18,52,34,.14), inset 0 1px 0 rgba(255,255,255,.08); white-space: nowrap; }
-.paris-clock-indicator { width: 7px; height: 7px; flex: none; border-radius: 50%; background: #a4e7b8; box-shadow: 0 0 0 4px rgba(164,231,184,.12), 0 0 12px rgba(164,231,184,.65); }
-.paris-clock-label { display: grid; gap: 2px; line-height: 1; }
-.paris-clock-label b { color: rgba(246,255,248,.96); font-size: 8px; font-weight: 850; letter-spacing: .16em; }
-.paris-clock-label small { color: rgba(211,231,216,.67); font-size: 7px; letter-spacing: .12em; }
-.paris-clock-time { color: #fff; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: .035em; }
 .login-clock { position: fixed; top: 16px; right: 18px; z-index: 30; }
 .kitchen-fullscreen-clock { display: none; }
 .sync-state { display: flex; align-items: center; gap: 7px; white-space: nowrap; color: var(--muted); font-size: 12px; }
@@ -252,7 +246,7 @@ a { color: var(--green); }
 @media (max-width: 900px) {
   .topbar { flex-wrap: wrap; }
   .nav { order: 2; }
-  .top-actions { order: 3; flex: 1 0 100%; width: 100%; margin-left: 0; padding-right: 0; justify-content: flex-end; margin-top: 4px; }
+  .top-actions { order: 3; flex: 1 0 100%; width: 100%; margin-left: 0; padding-right: 0; justify-content: flex-end; margin-top: 18px; }
 }
 @media (max-width: 1000px) {
   .topbar { padding: 9px 18px; gap: 12px; }
@@ -269,7 +263,7 @@ a { color: var(--green); }
   .brand { width: auto; }
   .nav { order: 3; width: 100%; overflow: auto; }
   .nav button { flex: 1; }
-  .top-actions { position: static; order: 2; flex: 1 0 100%; width: 100%; justify-content: flex-end; margin-left: 0; margin-top: 4px; }
+  .top-actions { position: static; order: 2; flex: 1 0 100%; width: 100%; justify-content: flex-end; margin-left: 0; margin-top: 18px; }
   .sync-state { display: none; }
   .page-head { align-items: start; flex-direction: column; }
   .table-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
