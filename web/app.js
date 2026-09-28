@@ -235,7 +235,7 @@ function renderTables() {
     const service = serviceForTable(table.id);
     const pending = service ? pendingItems(service).reduce((sum, item) => sum + item.pendingQty, 0) : 0;
     const status = !service ? t('空桌') : service.status === 'complete' ? t('待翻台') : t('点单中');
-    return `<button class="table-card ${tableTone(service)}" data-action="table" data-id="${esc(table.id)}"><div class="table-top"><div><span class="minor">${t('桌号')}</span><div class="table-num">${esc(table.id)}</div></div><span class="badge ${service?.status === 'complete' ? 'green' : service ? 'amber' : ''}">${status}</span></div><div class="table-bottom"><strong>${table.seats} ${t('人')}</strong><span>${service ? `${pending} ${t('待上桌')}` : t(table.zone)}</span></div></button>`;
+    return `<button class="table-card ${tableTone(service)}" data-action="table" data-id="${esc(table.id)}"><div class="table-top"><div><span class="minor">${t('桌号')}</span><div class="table-num">${esc(table.id)}</div></div><span class="badge ${service?.status === 'complete' ? 'green' : service ? 'amber' : ''}">${status}</span></div><div class="table-bottom"><strong>${service ? service.covers : 0} ${t('人')}</strong><span>${service ? `${pending} ${t('待上桌')}` : t(table.zone)}</span></div></button>`;
   };
   const groups = ['室内', '露台'].map(zone => `<div class="zone-label">${t(zone)}</div><div class="table-grid">${state.tables.filter(table => table.zone === zone).map(tableTile).join('')}</div>`).join('');
   const takeaways = state.services.filter(s => s.kind === 'takeaway').reverse();
@@ -380,7 +380,7 @@ function renderSettings() {
 function openStart(tableId = null) {
   const kind = tableId ? 'dine-in' : 'takeaway';
   const label = tableId ? `桌号 ${tableId}` : '新建打包单';
-  showModal(label, tableId ? '请输入本桌人数后开台。' : '打包单有独立编号，不占桌位。', `<form data-form="start-service"><input type="hidden" name="kind" value="${kind}"><input type="hidden" name="tableId" value="${esc(tableId || '')}"><div class="field"><label>人数 / Couverts</label><input class="field-input" type="number" name="covers" min="1" max="30" value="${tableId ? 2 : 1}" required></div>${modalActions(tableId ? '开台点单' : '创建打包单')}</form>`);
+  showModal(label, tableId ? '请输入本桌人数后开台。' : '打包单有独立编号，不占桌位。', `<form data-form="start-service"><input type="hidden" name="kind" value="${kind}"><input type="hidden" name="tableId" value="${esc(tableId || '')}"><div class="field"><label>人数 / Couverts</label><input class="field-input" type="number" name="covers" min="1" max="30" value="${tableId ? 0 : 1}" required></div>${modalActions(tableId ? '开台点单' : '创建打包单')}</form>`);
 }
 
 function reviewOrder() {
