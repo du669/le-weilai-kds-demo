@@ -39,6 +39,14 @@ a { color: var(--green); }
 .nav button:hover { background: var(--soft); }
 .nav button.active { background: var(--green-soft); color: var(--green); }
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: 9px; }
+.paris-clock { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 6px 12px 6px 10px; border: 1px solid rgba(255,255,255,.13); border-radius: 12px; background: radial-gradient(circle at 18% 0%, rgba(114,174,135,.25), transparent 42%), linear-gradient(135deg, #193f2e, #10281e); color: #f5fff7; box-shadow: 0 7px 20px rgba(18,52,34,.14), inset 0 1px 0 rgba(255,255,255,.08); white-space: nowrap; }
+.paris-clock-indicator { width: 7px; height: 7px; flex: none; border-radius: 50%; background: #a4e7b8; box-shadow: 0 0 0 4px rgba(164,231,184,.12), 0 0 12px rgba(164,231,184,.65); }
+.paris-clock-label { display: grid; gap: 2px; line-height: 1; }
+.paris-clock-label b { color: rgba(246,255,248,.96); font-size: 8px; font-weight: 850; letter-spacing: .16em; }
+.paris-clock-label small { color: rgba(211,231,216,.67); font-size: 7px; letter-spacing: .12em; }
+.paris-clock-time { color: #fff; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: .035em; }
+.login-clock { position: fixed; top: 16px; right: 18px; z-index: 30; }
+.kitchen-fullscreen-clock { display: none; }
 .sync-state { display: flex; align-items: center; gap: 7px; white-space: nowrap; color: var(--muted); font-size: 12px; }
 .sync-state i { height: 8px; width: 8px; border-radius: 50%; background: #23a667; }
 .sync-state.offline i { background: #d04e47; }
@@ -155,7 +163,8 @@ a { color: var(--green); }
 .aggregate-row:last-child { border: 0; }
 .aggregate-row b { display: flex; justify-content: space-between; font-size: 13px; }
 .aggregate-row small { color: var(--muted); font-size: 10px; }
-#kitchen-screen:fullscreen { background: #fff; padding: 18px; overflow: auto; }
+#kitchen-screen:fullscreen { position: relative; background: #fff; padding: 18px; overflow: auto; }
+#kitchen-screen:fullscreen .kitchen-fullscreen-clock { display: flex; width: max-content; margin: 0 0 14px auto; }
 #kitchen-screen:fullscreen .kitchen-list { grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 16px; }
 #kitchen-screen:fullscreen .kitchen-code { font-size: 43px; }
 #kitchen-screen:fullscreen .kitchen-dish { font-size: 27px; }
@@ -230,7 +239,9 @@ a { color: var(--green); }
   .expo-grid { grid-template-columns: repeat(2,minmax(250px,1fr)); }
 }
 @media (max-width: 1000px) {
-  .topbar { padding: 9px 18px; }
+  .topbar { padding: 9px 18px; gap: 12px; }
+  .paris-clock { gap: 8px; padding: 6px 9px; }
+  .paris-clock-time { font-size: 14px; }
   .nav { gap: 1px; }
   .nav button { font-size: 12px; padding: 9px 9px; }
   .split-layout, .order-columns { grid-template-columns: 1fr; }
@@ -241,10 +252,11 @@ a { color: var(--green); }
 }
 @media (max-width: 680px) {
   .topbar { position: static; gap: 7px; flex-wrap: wrap; }
-  .brand { width: 100%; }
+  .brand { width: auto; }
   .nav { order: 3; width: 100%; overflow: auto; }
   .nav button { flex: 1; }
-  .top-actions { position: absolute; right: 15px; top: 16px; }
+  .top-actions { position: static; order: 2; flex: 1 0 100%; width: 100%; justify-content: flex-end; margin-left: 0; }
+  .login-clock { top: 10px; right: 10px; }
   .sync-state { display: none; }
   .page-head { align-items: start; flex-direction: column; }
   .table-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
@@ -258,6 +270,9 @@ a { color: var(--green); }
   .log-row { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 430px) {
+  .paris-clock-label small { display: none; }
+  .paris-clock { min-height: 36px; }
+  .login-clock .paris-clock { min-height: 38px; }
   .table-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .menu-grid { grid-template-columns: 1fr 1fr; }
   .form-grid { grid-template-columns: 1fr; }
