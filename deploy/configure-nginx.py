@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Add the Le Weilai reverse-proxy location to an existing HTTPS Nginx site."""
 
+import os
 import re
 import shutil
 import sys
