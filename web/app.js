@@ -372,7 +372,7 @@ function renderKitchenCards() {
       const age = minutes(item.createdAt);
       const ageBadge = age >= state.settings.lateMinutes ? 'red' : age >= state.settings.warnMinutes ? 'amber' : '';
       return `<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span>×${item.pendingQty}</span></div><div class="kitchen-line-meta">${item.added ? '<span class="badge green">加菜</span>' : ''}${item.rush ? '<span class="badge red">催菜</span>' : ''}${allergy ? '<span class="badge red">⚠ 过敏提醒</span>' : ''}<span class="badge ${ageBadge}" data-minutes="${esc(item.createdAt)}">${age} 分钟</span></div>${item.note ? `<div class="kitchen-note">${allergy ? '⚠ ' : ''}${esc(item.note)}</div>` : ''}</div>`;
-    }).join('')}${cancelled.map(item => `<div class="kitchen-line"><div class="kitchen-dish" style="text-decoration:line-through;color:var(--red)"><span>${esc(item.nameZh)}</span><span>×${item.cancelledQty}</span></div></div>`).join('')}</div></article>`;
+    }).join('')}${cancelled.map(item => `<div class="kitchen-line cancelled"><div class="kitchen-dish cancelled-dish" aria-label="退菜：${esc(item.nameZh)} ×${item.cancelledQty}"><span>${esc(item.nameZh)}</span><span>×${item.cancelledQty}</span></div></div>`).join('')}</div></article>`;
   }).join('');
 }
 
