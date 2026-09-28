@@ -336,14 +336,12 @@ export function cancelPortions(db, itemId, input, actor = '服务员') {
     if (item.serviceStatus !== 'open') throw new AppError('此单已完单', 409);
     const pending = item.qty - item.served_qty - item.cancelled_qty;
     const qty = Number(input.qty ?? pending);
-    const reason = String(input.reason || '').trim();
     if (!Number.isInteger(qty) || qty < 1 || qty > pending) throw new AppError('退菜数量超过待出份数', 409);
-    if (!reason || reason.length > 200) throw new AppError('请填写退菜原因（200 字以内）');
-    db.prepare('UPDATE order_items SET cancelled_qty=cancelled_qty+?,cancelled_at=?,cancel_reason=?,rush=0 WHERE id=?')
-      .run(qty, iso(), reason, itemId);
+    db.prepare("UPDATE order_items SET cancelled_qty=cancelled_qty+?,cancelled_at=?,cancel_reason='',rush=0 WHERE id=?")
+      .run(qty, iso(), itemId);
     db.prepare('UPDATE menu_items SET stock=stock+?,updated_at=? WHERE id=? AND stock IS NOT NULL')
       .run(qty, iso(), item.menu_id);
-    log(db, actor, '退菜', { serviceId: item.serviceId, displayCode: item.displayCode, itemId, name: item.name_zh, qty, reason });
+    log(db, actor, '退菜', { serviceId: item.serviceId, displayCode: item.displayCode, itemId, name: item.name_zh, qty });
     return getService(db, item.serviceId);
   });
 }

@@ -350,8 +350,7 @@ function renderMenu() {
 
 function kitchenServices() {
   const services = state.services.filter(service => {
-    if (service.status !== 'open') return false;
-    return allItems(service).some(item => item.type === 'dish' && (item.pendingQty > 0 || (item.cancelledAt && Date.now() - Date.parse(item.cancelledAt) < 10000)));
+    return allItems(service).some(item => item.type === 'dish' && (item.pendingQty > 0 || item.cancelledQty > 0));
   });
   return services.sort((a, b) => sortMode === 'table'
     ? a.displayCode.localeCompare(b.displayCode, undefined, { numeric: true })
@@ -363,17 +362,17 @@ function renderKitchenCards() {
   if (!services.length) return '<div class="empty" style="grid-column:1/-1;padding:65px 20px"><strong>暂无待做菜品</strong><br>新订单会自动出现在这里</div>';
   return services.map(service => {
     const items = allItems(service).filter(item => item.type === 'dish' && item.pendingQty > 0);
-    const cancelled = allItems(service).filter(item => item.type === 'dish' && item.cancelledAt && Date.now() - Date.parse(item.cancelledAt) < 10000);
-    const oldest = items.length ? Math.max(...items.map(item => minutes(item.createdAt))) : 0;
-    const tone = oldest >= state.settings.lateMinutes ? 'late' : oldest >= state.settings.warnMinutes ? 'overdue' : '';
+    const cancelled = allItems(service).filter(item => item.type === 'dish' && item.cancelledQty > 0);
+    const oldest = items.length ? Math.max(...items.map(item => minutes(item.createdAt))) : null;
+    const tone = oldest === null ? '' : oldest >= state.settings.lateMinutes ? 'late' : oldest >= state.settings.warnMinutes ? 'overdue' : '';
     const heading = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
     const gap = service.lastServedAt ? minutes(service.lastServedAt) : null;
-    return `<article class="kitchen-card ${tone}"><div class="kitchen-card-head"><div><div class="kitchen-code">${esc(heading)}</div><span class="minor">${service.covers} 人 · 下单 ${clock(service.openedAt)}</span>${gap !== null && gap >= state.settings.gapMinutes ? '<br><span class="badge amber">出菜断档</span>' : ''}</div><div class="kitchen-meta"><b>${oldest} 分钟</b>${gap !== null ? `<br>上道出菜后 ${gap} 分钟` : ''}</div></div><div class="kitchen-lines">${items.map(item => {
+    return `<article class="kitchen-card ${tone}"><div class="kitchen-card-head"><div><div class="kitchen-code">${esc(heading)}</div><span class="minor">${service.covers} 人 · 下单 ${clock(service.openedAt)}</span>${gap !== null && gap >= state.settings.gapMinutes ? '<br><span class="badge amber">出菜断档</span>' : ''}</div><div class="kitchen-meta">${oldest === null ? '<b>退菜记录</b>' : `<b>${oldest} 分钟</b>`}${gap !== null && oldest !== null ? `<br>上道出菜后 ${gap} 分钟` : ''}</div></div><div class="kitchen-lines">${items.map(item => {
       const allergy = item.allergens && /过敏|allerg/i.test(item.note);
       const age = minutes(item.createdAt);
       const ageBadge = age >= state.settings.lateMinutes ? 'red' : age >= state.settings.warnMinutes ? 'amber' : '';
       return `<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span>×${item.pendingQty}</span></div><div class="kitchen-line-meta">${item.added ? '<span class="badge green">加菜</span>' : ''}${item.rush ? '<span class="badge red">催菜</span>' : ''}${allergy ? '<span class="badge red">⚠ 过敏提醒</span>' : ''}<span class="badge ${ageBadge}" data-minutes="${esc(item.createdAt)}">${age} 分钟</span></div>${item.note ? `<div class="kitchen-note">${allergy ? '⚠ ' : ''}${esc(item.note)}</div>` : ''}</div>`;
-    }).join('')}${cancelled.map(item => `<div class="kitchen-line"><div class="kitchen-dish" style="text-decoration:line-through;color:var(--red)"><span>${esc(item.nameZh)}</span><span>×${item.cancelledQty}</span></div><div class="kitchen-note">退菜 · ${esc(item.cancelReason || '')}</div></div>`).join('')}</div></article>`;
+    }).join('')}${cancelled.map(item => `<div class="kitchen-line"><div class="kitchen-dish" style="text-decoration:line-through;color:var(--red)"><span>${esc(item.nameZh)}</span><span>×${item.cancelledQty}</span></div></div>`).join('')}</div></article>`;
   }).join('');
 }
 
@@ -474,7 +473,7 @@ function showReceipt(service, order = null) {
 function openCancel(itemId) {
   const item = allItems(activeService()).find(row => row.id === itemId);
   if (!item || !item.pendingQty) return;
-  showModal('退菜 / 改单', `${item.nameZh} · 最多 ${item.pendingQty} 份`, `<form data-form="cancel-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>退菜份数</label><input class="field-input" name="qty" type="number" min="1" max="${item.pendingQty}" value="${item.pendingQty}" required></div><div class="field"><label>原因 / 新做法</label><textarea class="field-input" name="reason" placeholder="例如：改为不辣，重新下单" maxlength="200" required></textarea></div><p class="hint">若需改单，请退掉待做份数后重新下单。已上桌的份数不能退。</p>${modalActions('确认退菜并通知后厨')}</form>`);
+  showModal('退菜', `${item.nameZh} · 最多 ${item.pendingQty} 份`, `<form data-form="cancel-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>退菜份数</label><input class="field-input" name="qty" type="number" min="1" max="${item.pendingQty}" value="${item.pendingQty}" required></div><p class="hint">退菜后会在后厨保留划线记录。已上桌的份数不能退；如需改单，请重新点单。</p>${modalActions('确认退菜并通知后厨')}</form>`);
 }
 
 function openMenuEditor(menuId = null) {
@@ -632,7 +631,7 @@ document.addEventListener('submit', async event => {
     return;
   }
   if (form.dataset.form === 'cancel-item') {
-    if (await mutate(`/api/items/${values.itemId}/cancel`, { qty: Number(values.qty), reason: values.reason })) { closeModal(); toast('退菜已通知后厨'); }
+    if (await mutate(`/api/items/${values.itemId}/cancel`, { qty: Number(values.qty) })) { closeModal(); toast('退菜已通知后厨'); }
     return;
   }
   if (form.dataset.form === 'menu') {
