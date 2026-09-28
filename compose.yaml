@@ -6,10 +6,13 @@ services:
     restart: unless-stopped
     expose:
       - "8766"
+    ports:
+      - "127.0.0.1:8766:8766"
     environment:
       HOST: 0.0.0.0
       PORT: 8766
       DB_FILE: /app/data/restaurant.sqlite
+      APP_BASE_PATH: ${APP_BASE_PATH:-}
       APP_PIN: ${APP_PIN:?Run deploy.sh to create APP_PIN}
       ADMIN_PIN: ${ADMIN_PIN:?Run deploy.sh to create ADMIN_PIN}
       COOKIE_SECURE: "1"
@@ -29,6 +32,7 @@ services:
       start_period: 10s
 
   caddy:
+    profiles: [caddy]
     image: caddy:2-alpine
     restart: unless-stopped
     depends_on:

@@ -14,6 +14,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const webRoot = join(root, 'web');
 const host = process.env.HOST || '127.0.0.1';
 const port = Number(process.env.PORT || 8766);
+const basePath = (process.env.APP_BASE_PATH || '').replace(/\/+$/, '');
 const appPin = process.env.APP_PIN || '';
 const adminPin = process.env.ADMIN_PIN || appPin;
 const dataFile = resolve(process.env.DB_FILE || join(root, 'data', process.env.DEMO_SEED === '1' ? 'demo.sqlite' : 'restaurant.sqlite'));
@@ -108,7 +109,16 @@ const staticFiles = new Map([
 async function handle(req, res) {
   setHeaders(res);
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  const path = url.pathname;
+  let path = url.pathname;
+  if (basePath) {
+    if (path === basePath) {
+      res.writeHead(308, { Location: `${basePath}/` });
+      res.end();
+      return;
+    }
+    if (!path.startsWith(`${basePath}/`)) return json(res, 404, { error: '页面或接口不存在' });
+    path = path.slice(basePath.length) || '/';
+  }
   if (req.method === 'GET' && staticFiles.has(path)) {
     const [file, type] = staticFiles.get(path);
     const content = await readFile(join(webRoot, file));
@@ -134,13 +144,13 @@ async function handle(req, res) {
     const token = randomBytes(32).toString('hex');
     sessions.set(token, { role, actor: role === 'admin' ? '管理员' : '员工', expires: Date.now() + 12 * 60 * 60 * 1000 });
     const secure = process.env.COOKIE_SECURE === '1' ? '; Secure' : '';
-    return json(res, 200, { role }, { 'Set-Cookie': `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${secure}` });
+    return json(res, 200, { role }, { 'Set-Cookie': `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=${basePath || '/'}; Max-Age=43200${secure}` });
   }
   if (path === '/api/logout' && req.method === 'POST') {
     checkOrigin(req);
     const cookie = (req.headers.cookie || '').split(';').map(part => part.trim()).find(part => part.startsWith(`${cookieName}=`));
     if (cookie) sessions.delete(cookie.slice(cookieName.length + 1));
-    return json(res, 200, { ok: true }, { 'Set-Cookie': `${cookieName}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0` });
+    return json(res, 200, { ok: true }, { 'Set-Cookie': `${cookieName}=; HttpOnly; SameSite=Strict; Path=${basePath || '/'}; Max-Age=0` });
   }
   if (path === '/api/events' && req.method === 'GET') {
     requireSession(req);

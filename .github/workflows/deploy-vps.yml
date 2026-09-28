@@ -1,0 +1,51 @@
+name: Deploy restaurant app to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tripmanager-restaurant-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare SSH credentials
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          test -n "$VPS_SSH_PRIVATE_KEY" || { echo "Missing Actions secret VPS_SSH_PRIVATE_KEY" >&2; exit 1; }
+          test -n "$VPS_KNOWN_HOSTS" || { echo "Missing Actions secret VPS_KNOWN_HOSTS" >&2; exit 1; }
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/le-weilai-deploy"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/le-weilai-deploy" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/le-weilai-deploy" >/dev/null
+
+      - name: Update app and reload Nginx route
+        run: |
+          set -eu
+          ssh -i "$HOME/.ssh/le-weilai-deploy" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            root@150.158.125.219 'bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          APP_DIR=/opt/le-weilai-kds-demo
+          if [[ -d "$APP_DIR/.git" ]]; then
+            git -C "$APP_DIR" fetch origin main
+            git -C "$APP_DIR" pull --ff-only origin main
+          else
+            git clone --branch main --single-branch https://github.com/du669/le-weilai-kds-demo.git "$APP_DIR"
+          fi
+          cd "$APP_DIR"
+          bash ./deploy-nginx.sh tripmanager.cn
+          REMOTE

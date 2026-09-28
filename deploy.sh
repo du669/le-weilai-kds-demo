@@ -5,6 +5,8 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 DOMAIN="${1:-}"
+PROXY_MODE="${PROXY_MODE:-caddy}"
+APP_BASE_PATH="${APP_BASE_PATH:-}"
 if [[ ! "$DOMAIN" =~ ^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$ ]]; then
   echo "用法: sudo bash deploy.sh your-domain.example" >&2
   echo "请先把域名的 DNS A 记录指向这台 VPS。" >&2
@@ -43,6 +45,7 @@ read_env() {
 }
 
 set_env DOMAIN "$DOMAIN"
+set_env APP_BASE_PATH "$APP_BASE_PATH"
 new_credentials=0
 for key in APP_PIN ADMIN_PIN; do
   value="$(read_env "$key")"
@@ -54,14 +57,23 @@ for key in APP_PIN ADMIN_PIN; do
 done
 
 docker compose config --quiet
-docker compose up -d --build
+case "$PROXY_MODE" in
+  caddy) docker compose --profile caddy up -d --build ;;
+  nginx) docker compose up -d --build app ;;
+  *) echo "PROXY_MODE 须为 caddy 或 nginx。" >&2; exit 2 ;;
+esac
 
 echo
-echo "Le Weilai 已启动。域名: https://$DOMAIN"
+if [[ "$PROXY_MODE" == "nginx" ]]; then
+  echo "Le Weilai 已启动。地址: https://$DOMAIN$APP_BASE_PATH/"
+  echo "查看日志: docker compose logs -f app"
+else
+  echo "Le Weilai 已启动。域名: https://$DOMAIN"
+  echo "查看日志: docker compose logs -f app caddy"
+fi
 echo "检查状态: docker compose ps"
-echo "查看日志: docker compose logs -f app caddy"
 echo "数据库位于持久化卷 restaurant_data；重新部署不会清空订单。"
-if (( new_credentials )); then
+if (( new_credentials )) && [[ "${CI:-}" != "true" ]]; then
   echo
   echo "首次生成的登录 PIN（请安全保存）："
   printf '员工 PIN: %s\n' "$(read_env APP_PIN)"

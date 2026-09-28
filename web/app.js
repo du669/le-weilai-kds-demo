@@ -90,7 +90,7 @@ const serviceKind = service => service.kind === 'takeaway' ? t('打包单') : `$
 const serviceRows = service => service.orders.flatMap(order => order.items.map(item => ({ ...item, orderId: order.id })));
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(new URL(path.replace(/^\/+/, ''), document.baseURI), {
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     ...options,
@@ -160,7 +160,7 @@ function alertForChanges(previous, next) {
 
 function connectEvents() {
   stream?.close();
-  stream = new EventSource('/api/events');
+  stream = new EventSource(new URL('api/events', document.baseURI));
   stream.addEventListener('change', event => {
     if (!state || Number(event.data) !== state.revision) loadState();
   });
@@ -604,11 +604,6 @@ function updateClocks() {
 }
 
 async function boot() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(registrations => {
-      for (const registration of registrations) registration.unregister();
-    }).catch(() => {});
-  }
   try {
     auth = await api('/api/session');
     if (auth.authorized) { await loadState(); connectEvents(); }

@@ -92,6 +92,12 @@ sudo bash backup-vps.sh
 
 需要自动打印时，在 `.env` 中填写 `EPSON_PRINTER_URL`，然后执行 `sudo docker compose up -d`。如果打印机留在店内局域网，VPS 必须通过 VPN 或店内打印桥安全访问打印机。
 
+## 部署到已有 Nginx 网站的子路径
+
+如果 80/443 端口已由 Nginx 使用，且该域名已经有有效 HTTPS 证书，可运行 `sudo bash deploy-nginx.sh your-domain.example`。它会将应用限制在本机 `127.0.0.1:8766`，在对应 HTTPS Nginx 站点中加入 `/restaurant/` 反向代理，并保留现有根路径网站。首次自动部署会生成员工和管理员 PIN；查看服务器上的 `.env` 文件获取 PIN。
+
+仓库中的 `.github/workflows/deploy-vps.yml` 会在推送到 `main` 后通过 SSH 更新服务器代码并运行部署脚本。GitHub 仓库的 **Settings → Secrets and variables → Actions** 中需要设置 `VPS_SSH_PRIVATE_KEY` 和 `VPS_KNOWN_HOSTS` 两个 Secret。工作流假定服务器是 `root@150.158.125.219`，站点域名为 `tripmanager.cn`。
+
 ## 数据备份
 
 运行 `npm run backup`，生成 `data/backups/le-weilai-时间.sqlite`。可以在服务运行时执行。需要备份演示库时先设置 `DEMO_SEED=1`。如果自定义数据库位置，备份命令也应设置相同的 `DB_FILE`。`BACKUP_DIR` 可指定备份目录。
