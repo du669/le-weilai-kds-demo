@@ -1,6 +1,6 @@
 # Le Weilai 餐厅服务系统
 
-本地版本采用前后端分离结构：`web/` 是通过 JSON API 工作的浏览器界面，`server/` 是 Node.js 服务与 SQLite 数据库。`public_site/` 是先前的静态 GitHub Pages 演示，仍可打开，但它不连接新数据库。GitHub Pages 不能运行 Node.js 服务；将来可把本系统部署到小型 VPS。
+本项目采用前后端分离结构：`web/` 是通过 JSON API 工作的浏览器界面，`server/` 是 Node.js 服务与 SQLite 数据库。仓库已提供 Docker Compose 与 `deploy.sh`，可一条命令部署到有域名的小型 VPS。`public_site/` 是先前的静态 GitHub Pages 演示；GitHub Pages 不运行本项目所需的 Node.js 数据库服务。
 
 ## 本地启动
 
@@ -44,7 +44,7 @@ npm start
 
 `EPSON_PRINT_LANG` 可设 `fr` 或 `zh`；默认法语。每次新下单自动发送小票，接口会记录打印结果。若打印机没有确认，订单仍保存在数据库，点单端会明确提示，并可从小票预览重打。请在现场验证打印机地址、纸张宽度、中文字符和 HTTPS 证书。打印机位于店内局域网时，未来 VPS 需要有到店内打印机的安全网络路径，或改用店内打印桥接服务。[Epson ePOS-Print XML 官方手册](https://files.support.epson.com/pdf/pos/bulk/epos-print_xml_um_en_rev_af.pdf)
 
-## 局域网与 VPS
+## 局域网本机服务
 
 本机以外访问时必须设置至少 6 位的 `APP_PIN`，可另设 `ADMIN_PIN` 限制菜单、库存和设置修改。示例：
 
@@ -55,7 +55,42 @@ $env:ADMIN_PIN='请换成另一组管理员PIN'
 npm start
 ```
 
-在 VPS 上建议使用 `compose.yaml`，将服务仅映射到服务器的 `127.0.0.1:8766`，再通过带 HTTPS 的反向代理开放网站。启动 Compose 前设置 `APP_PIN` 和 `ADMIN_PIN` 环境变量；反向代理使用 HTTPS 时，`COOKIE_SECURE=1` 保证会话 Cookie 仅通过 HTTPS 发送。数据库存于 Docker 卷 `restaurant_data`。请定期备份。
+## 一键部署到 VPS
+
+部署脚本面向装有 Docker Engine、Docker Compose 插件和 `openssl` 的 Linux VPS。先把域名的 DNS A 记录指向 VPS，并在云厂商防火墙和系统防火墙放行入站 TCP 80、TCP 443（可选 UDP 443）。随后运行：
+
+```bash
+git clone https://github.com/du669/le-weilai-kds-demo.git le-weilai
+cd le-weilai
+sudo bash deploy.sh orders.example.com
+```
+
+脚本会创建权限为 600 的 `.env`、生成员工和管理员 PIN、构建应用并启动 Caddy HTTPS 反向代理。首次启动时会在终端显示 PIN，请安全保存；之后可从 VPS 项目目录运行 `sudo cat .env` 查看，也可参考 `.env.example` 手动配置。Caddy 会为正确解析到 VPS 的域名自动申请和续期 HTTPS 证书。SQLite 数据库、证书和 Caddy 配置存放在 Docker 持久化卷中。
+
+发布新版本时进入项目目录执行：
+
+```bash
+git pull
+sudo bash deploy.sh orders.example.com
+```
+
+重复运行会沿用现有 PIN 和数据库。不要执行 `docker compose down -v`，该命令会删除数据库卷。
+
+手动管理服务：
+
+```bash
+sudo docker compose ps
+sudo docker compose logs -f app caddy
+sudo docker compose restart app
+```
+
+定期备份数据库到 VPS 项目下被 Git 忽略的 `backups/` 目录，并把备份复制到另一处存储：
+
+```bash
+sudo bash backup-vps.sh
+```
+
+需要自动打印时，在 `.env` 中填写 `EPSON_PRINTER_URL`，然后执行 `sudo docker compose up -d`。如果打印机留在店内局域网，VPS 必须通过 VPN 或店内打印桥安全访问打印机。
 
 ## 数据备份
 

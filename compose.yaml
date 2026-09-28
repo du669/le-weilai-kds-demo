@@ -1,17 +1,51 @@
+name: le-weilai
+
 services:
   app:
     build: .
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:8766:8766"
+    expose:
+      - "8766"
     environment:
-      APP_PIN: ${APP_PIN:?Set a staff PIN}
-      ADMIN_PIN: ${ADMIN_PIN:?Set a separate admin PIN}
+      HOST: 0.0.0.0
+      PORT: 8766
+      DB_FILE: /app/data/restaurant.sqlite
+      APP_PIN: ${APP_PIN:?Run deploy.sh to create APP_PIN}
+      ADMIN_PIN: ${ADMIN_PIN:?Run deploy.sh to create ADMIN_PIN}
       COOKIE_SECURE: "1"
       EPSON_PRINTER_URL: ${EPSON_PRINTER_URL:-}
       EPSON_PRINT_LANG: ${EPSON_PRINT_LANG:-fr}
     volumes:
       - restaurant_data:/app/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:8766/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 20s
+      timeout: 4s
+      retries: 5
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Run deploy.sh with your domain name}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
   restaurant_data:
+  caddy_data:
+  caddy_config:
