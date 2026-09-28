@@ -162,8 +162,7 @@ a { color: var(--green); }
 .kitchen-line:last-child { border-bottom: 0; }
 .kitchen-dish { display: flex; justify-content: space-between; gap: 7px; font-size: 18px; font-weight: 900; line-height: 1.3; }
 .kitchen-dish span:last-child { white-space: nowrap; }
-.kitchen-dish.cancelled-dish { position: relative; color: var(--red); }
-.kitchen-dish.cancelled-dish::after { content: ''; position: absolute; z-index: 1; left: 0; right: 0; top: 50%; height: 3px; background: currentColor; transform: translateY(-50%); pointer-events: none; }
+.kitchen-dish-status { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
 .kitchen-note { margin-top: 7px; font-size: 13px; font-weight: 800; color: var(--red); line-height: 1.4; }
 .kitchen-line-meta { display: flex; gap: 5px; align-items: center; margin-top: 7px; flex-wrap: wrap; }
 .kitchen-aggregate { padding: 16px; }

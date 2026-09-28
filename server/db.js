@@ -120,6 +120,7 @@ export function openDatabase(file) {
     noteTags: ['不辣', '微辣', '特辣', '不要葱', '打包', '过敏'] })) {
     db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)').run(key, JSON.stringify(value));
   }
+  db.prepare("UPDATE services SET closed_at=COALESCE(completed_at,opened_at) WHERE status='complete' AND closed_at IS NULL").run();
   applyDailyReset(db);
   return db;
 }
@@ -366,7 +367,7 @@ export function completeService(db, serviceId, actor = '出菜口') {
     if (!items.length) throw new AppError('没有已下单菜品', 409);
     if (items.some(item => item.pendingQty > 0)) throw new AppError('还有菜未上桌，暂不能完单', 409);
     const stamp = iso();
-    db.prepare("UPDATE services SET status='complete',completed_at=? WHERE id=?").run(stamp, serviceId);
+    db.prepare("UPDATE services SET status='complete',completed_at=?,closed_at=? WHERE id=?").run(stamp, stamp, serviceId);
     log(db, actor, '完单', { serviceId, displayCode: service.displayCode });
     return getService(db, serviceId);
   });
@@ -375,7 +376,7 @@ export function completeService(db, serviceId, actor = '出菜口') {
 export function closeService(db, serviceId, actor = '服务员') {
   return transaction(db, () => {
     const service = getService(db, serviceId);
-    if (service.status !== 'complete') throw new AppError('请先在出菜口完单', 409);
+    if (service.status !== 'complete' || service.closedAt) throw new AppError('此单已结束', 409);
     db.prepare("UPDATE services SET status='closed',closed_at=? WHERE id=?").run(iso(), serviceId);
     log(db, actor, service.kind === 'takeaway' ? '交付打包' : '翻台', { serviceId, displayCode: service.displayCode });
     return getService(db, serviceId);

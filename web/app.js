@@ -26,7 +26,7 @@ const words = {
   '桌位点单': 'Commande par table', '选择桌位': 'Choisir une table',
   '选择桌位开始点单，也可从单独入口创建打包单。': 'Choisissez une table ou créez une commande à emporter.',
   '室内': 'Salle', '露台': 'Terrasse', '空桌': 'Libre', '点单中': 'En cours',
-  '待翻台': 'À libérer', '待上桌': 'À servir', '已上桌': 'Servi', '已退菜': 'Annulé',
+  '待上桌': 'À servir', '已上桌': 'Servi', '已退菜': 'Annulé',
   '桌号': 'Table', '人数': 'Couverts', '人': 'pers.', '份': 'portion(s)',
   '单独打包入口': 'Nouvelle commande à emporter', '打包单': 'Commandes à emporter',
   '暂无打包单': 'Aucune commande à emporter', '返回桌位': 'Retour aux tables',
@@ -39,18 +39,15 @@ const words = {
   '点单篮': 'Commande', '暂无菜品': 'Aucun plat', '备注': 'Remarque',
   '例如：少辣、过敏原': 'Ex. : peu épicé, allergie', '清空': 'Vider',
   '确认下单': 'Confirmer', '合计': 'Total', '催菜': 'Relancer',
-  '退菜': 'Annuler un plat', '翻台': 'Libérer la table',
-  '打包交付': 'Commande remise', '取消开单': 'Annuler l’ouverture',
+  '退菜': 'Annuler un plat', '取消开单': 'Annuler l’ouverture',
   '小票': 'Ticket', '查看历史': 'Voir l’historique', '加菜': 'Ajouter des plats',
   '新单': 'Nouvelle commande', '订单已锁定': 'Commande verrouillée',
-  '完单后保留整桌菜品记录。翻台后新客人会生成新的服务单。': 'La commande reste consultable après validation. La table libérée ouvre un nouveau service.',
   '库存由服务器核对，多台设备会同步。': 'Le stock est vérifié sur le serveur et synchronisé entre appareils.',
   '后台管理': 'Gestion', '菜单、库存、历史记录和系统提醒。': 'Menu, stock, historique et alertes.',
   '营业概览': 'Vue du service', '菜单': 'Menu', '库存 / 沽清': 'Stock / Rupture',
   '历史服务单': 'Historique', '操作日志': 'Journal', '设置': 'Réglages',
   '进行中服务单': 'Services en cours', '含打包单': 'Emporté inclus',
   '待上桌份数': 'Portions à servir', '菜品及饮品': 'Plats et boissons',
-  '已完单待翻台': 'Terminées à libérer', '服务单仍可查看': 'Détails disponibles',
   '沽清菜品': 'Plats épuisés', '库存为 0': 'Stock à zéro',
   '当前服务单': 'Services ouverts', '打包': 'À emporter', '堂食': 'Sur place',
   '查看': 'Voir', '菜单管理': 'Gestion du menu', '新增菜品': 'Ajouter un plat',
@@ -301,12 +298,12 @@ function renderTables() {
   const tableTile = table => {
     const service = serviceForTable(table.id);
     const pending = service ? pendingItems(service).reduce((sum, item) => sum + item.pendingQty, 0) : 0;
-    const status = !service ? t('空桌') : service.status === 'complete' ? t('待翻台') : t('点单中');
-    return `<button class="table-card ${tableTone(service)}" data-action="table" data-id="${esc(table.id)}"><div class="table-top"><div><span class="minor">${t('桌号')}</span><div class="table-num">${esc(table.id)}</div></div><span class="badge ${service?.status === 'complete' ? 'green' : service ? 'amber' : ''}">${status}</span></div><div class="table-bottom"><strong>${service ? service.covers : 0} ${t('人')}</strong><span>${service ? `${pending} ${t('待上桌')}` : t(table.zone)}</span></div></button>`;
+    const status = service ? t('点单中') : t('空桌');
+    return `<button class="table-card ${tableTone(service)}" data-action="table" data-id="${esc(table.id)}"><div class="table-top"><div><span class="minor">${t('桌号')}</span><div class="table-num">${esc(table.id)}</div></div><span class="badge ${service ? 'amber' : ''}">${status}</span></div><div class="table-bottom"><strong>${service ? service.covers : 0} ${t('人')}</strong><span>${service ? `${pending} ${t('待上桌')}` : t(table.zone)}</span></div></button>`;
   };
   const groups = ['室内', '露台'].map(zone => `<div class="zone-label">${t(zone)}</div><div class="table-grid">${state.tables.filter(table => table.zone === zone).map(tableTile).join('')}</div>`).join('');
   const takeaways = state.services.filter(s => s.kind === 'takeaway').reverse();
-  return `${pageHead(t('选择桌位'), t('选择桌位开始点单，也可从单独入口创建打包单。'))}<div class="split-layout"><section class="panel pad">${groups}</section><aside class="panel pad sticky"><button class="takeaway-entry" data-action="new-takeaway">＋ ${t('单独打包入口')}</button><div class="panel-head"><h2>${t('打包单')}</h2><span class="badge blue">${takeaways.length}</span></div>${takeaways.length ? takeaways.map(service => `<div class="list-row"><div><b>${esc(service.displayCode)}</b><small>${clock(service.openedAt)} · ${service.status === 'complete' ? t('已完单') : pendingItems(service).length + ' ' + t('待上桌')}</small></div><button class="btn small" data-action="open-service" data-id="${service.id}">打开</button></div>`).join('') : `<div class="empty">${t('暂无打包单')}</div>`}<div class="list-row"><span>${t('点单中')}</span><strong>${occupied.filter(s => s.status === 'open').length}</strong></div><div class="list-row"><span>${t('待翻台')}</span><strong>${occupied.filter(s => s.status === 'complete').length}</strong></div><div class="list-row"><span>${t('待上桌')}</span><strong>${waiting} ${t('份')}</strong></div><p class="hint">${t('库存由服务器核对，多台设备会同步。')}</p></aside></div>`;
+  return `${pageHead(t('选择桌位'), t('选择桌位开始点单，也可从单独入口创建打包单。'))}<div class="split-layout"><section class="panel pad">${groups}</section><aside class="panel pad sticky"><button class="takeaway-entry" data-action="new-takeaway">＋ ${t('单独打包入口')}</button><div class="panel-head"><h2>${t('打包单')}</h2><span class="badge blue">${takeaways.length}</span></div>${takeaways.length ? takeaways.map(service => `<div class="list-row"><div><b>${esc(service.displayCode)}</b><small>${clock(service.openedAt)} · ${service.status === 'complete' ? t('已完单') : pendingItems(service).length + ' ' + t('待上桌')}</small></div><button class="btn small" data-action="open-service" data-id="${service.id}">打开</button></div>`).join('') : `<div class="empty">${t('暂无打包单')}</div>`}<div class="list-row"><span>${t('点单中')}</span><strong>${occupied.filter(s => s.status === 'open').length}</strong></div><div class="list-row"><span>${t('待上桌')}</span><strong>${waiting} ${t('份')}</strong></div><p class="hint">${t('库存由服务器核对，多台设备会同步。')}</p></aside></div>`;
 }
 
 function orderLine(item, service) {
@@ -325,7 +322,7 @@ function renderOrder() {
   const total = basket.reduce((sum, line) => sum + (menuItem(line.menuId)?.priceCents || 0) * line.qty, 0);
   const ordered = rows.length ? `<div class="order-items">${rows.map(item => orderLine(item, service)).join('')}</div>` : `<div class="empty">${t('暂无菜品')}</div>`;
   const headline = `<div class="service-headline"><strong>${esc(serviceKind(service))}</strong><span class="badge ${isOpen ? 'amber' : 'green'}">${isOpen ? t('正在点单') : t('已完单')}</span><small>${service.covers} ${t('人')} · ${clock(service.openedAt)}</small></div>`;
-  const statusPanel = `<section class="panel order-status">${headline}<div class="panel-head" style="margin:16px 0 0"><h2>${t('本桌全部点单')}</h2><div class="row-actions">${pending.length && isOpen ? `<button class="btn small warn" data-action="rush">${t('催菜')}</button>` : ''}${!rows.length && isOpen ? `<button class="btn small danger" data-action="discard">${t('取消开单')}</button>` : ''}${rows.length ? `<button class="btn small" data-action="receipt-latest">${t('小票')}</button>` : ''}${state.printer?.configured && latestOrder ? `<button class="btn small" data-action="epson-reprint" data-id="${latestOrder.id}">Epson 重打</button>` : ''}${service.status === 'complete' ? `<button class="btn small primary" data-action="close-service">${service.kind === 'takeaway' ? t('打包交付') : t('翻台')}</button>` : ''}</div></div>${ordered}${service.status === 'complete' ? `<p class="hint">${t('完单后保留整桌菜品记录。翻台后新客人会生成新的服务单。')}</p>` : ''}</section>`;
+  const statusPanel = `<section class="panel order-status">${headline}<div class="panel-head" style="margin:16px 0 0"><h2>${t('本桌全部点单')}</h2><div class="row-actions">${pending.length && isOpen ? `<button class="btn small warn" data-action="rush">${t('催菜')}</button>` : ''}${!rows.length && isOpen ? `<button class="btn small danger" data-action="discard">${t('取消开单')}</button>` : ''}${rows.length ? `<button class="btn small" data-action="receipt-latest">${t('小票')}</button>` : ''}${state.printer?.configured && latestOrder ? `<button class="btn small" data-action="epson-reprint" data-id="${latestOrder.id}">Epson 重打</button>` : ''}</div></div>${ordered}${service.status === 'complete' ? '<p class="hint">服务单已结束，桌位已自动释放。</p>' : ''}</section>`;
   const actions = `<button class="btn" data-action="nav" data-view="tables">← ${t('返回桌位')}</button>`;
   if (!isOpen) return `${pageHead(t('桌位点单'), '', actions)}${statusPanel}`;
   const categories = ['全部', ...new Set(state.menu.filter(m => m.active).map(m => m.category))];
@@ -350,7 +347,7 @@ function renderMenu() {
 
 function kitchenServices() {
   const services = state.services.filter(service => {
-    return allItems(service).some(item => item.type === 'dish' && (item.pendingQty > 0 || item.cancelledQty > 0));
+    return allItems(service).some(item => item.type === 'dish' && (item.pendingQty > 0 || item.servedQty > 0 || item.cancelledQty > 0));
   });
   return services.sort((a, b) => sortMode === 'table'
     ? a.displayCode.localeCompare(b.displayCode, undefined, { numeric: true })
@@ -361,18 +358,26 @@ function renderKitchenCards() {
   const services = kitchenServices();
   if (!services.length) return '<div class="empty" style="grid-column:1/-1;padding:65px 20px"><strong>暂无待做菜品</strong><br>新订单会自动出现在这里</div>';
   return services.map(service => {
-    const items = allItems(service).filter(item => item.type === 'dish' && item.pendingQty > 0);
-    const cancelled = allItems(service).filter(item => item.type === 'dish' && item.cancelledQty > 0);
-    const oldest = items.length ? Math.max(...items.map(item => minutes(item.createdAt))) : null;
-    const tone = oldest === null ? '' : oldest >= state.settings.lateMinutes ? 'late' : oldest >= state.settings.warnMinutes ? 'overdue' : '';
+    const items = allItems(service).filter(item => item.type === 'dish');
+    const pending = items.filter(item => item.pendingQty > 0);
+    const oldestPending = pending.length ? Math.max(...pending.map(item => minutes(item.createdAt))) : null;
+    const tone = oldestPending === null ? '' : oldestPending >= state.settings.lateMinutes ? 'late' : oldestPending >= state.settings.warnMinutes ? 'overdue' : '';
     const heading = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
     const gap = service.lastServedAt ? minutes(service.lastServedAt) : null;
-    return `<article class="kitchen-card ${tone}"><div class="kitchen-card-head"><div><div class="kitchen-code">${esc(heading)}</div><span class="minor">${service.covers} 人 · 下单 ${clock(service.openedAt)}</span>${gap !== null && gap >= state.settings.gapMinutes ? '<br><span class="badge amber">出菜断档</span>' : ''}</div><div class="kitchen-meta">${oldest === null ? '<b>退菜记录</b>' : `<b>${oldest} 分钟</b>`}${gap !== null && oldest !== null ? `<br>上道出菜后 ${gap} 分钟` : ''}</div></div><div class="kitchen-lines">${items.map(item => {
-      const allergy = item.allergens && /过敏|allerg/i.test(item.note);
-      const age = minutes(item.createdAt);
-      const ageBadge = age >= state.settings.lateMinutes ? 'red' : age >= state.settings.warnMinutes ? 'amber' : '';
-      return `<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span>×${item.pendingQty}</span></div><div class="kitchen-line-meta">${item.added ? '<span class="badge green">加菜</span>' : ''}${item.rush ? '<span class="badge red">催菜</span>' : ''}${allergy ? '<span class="badge red">⚠ 过敏提醒</span>' : ''}<span class="badge ${ageBadge}" data-minutes="${esc(item.createdAt)}">${age} 分钟</span></div>${item.note ? `<div class="kitchen-note">${allergy ? '⚠ ' : ''}${esc(item.note)}</div>` : ''}</div>`;
-    }).join('')}${cancelled.map(item => `<div class="kitchen-line cancelled"><div class="kitchen-dish cancelled-dish" aria-label="退菜：${esc(item.nameZh)} ×${item.cancelledQty}"><span>${esc(item.nameZh)}</span><span>×${item.cancelledQty}</span></div></div>`).join('')}</div></article>`;
+    const lines = items.flatMap(item => {
+      const itemLines = [];
+      if (item.pendingQty > 0) {
+        const allergy = item.allergens && /过敏|allerg/i.test(item.note);
+        const age = minutes(item.createdAt);
+        const ageBadge = age >= state.settings.lateMinutes ? 'red' : age >= state.settings.warnMinutes ? 'amber' : '';
+        itemLines.push(`<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span>×${item.pendingQty}</span></div><div class="kitchen-line-meta">${item.added ? '<span class="badge green">加菜</span>' : ''}${item.rush ? '<span class="badge red">催菜</span>' : ''}${allergy ? '<span class="badge red">⚠ 过敏提醒</span>' : ''}<span class="badge ${ageBadge}" data-minutes="${esc(item.createdAt)}">${age} 分钟</span></div>${item.note ? `<div class="kitchen-note">${allergy ? '⚠ ' : ''}${esc(item.note)}</div>` : ''}</div>`);
+      }
+      if (item.servedQty > 0) itemLines.push(`<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span class="kitchen-dish-status">×${item.servedQty}<span class="badge green">已上桌</span></span></div></div>`);
+      if (item.cancelledQty > 0) itemLines.push(`<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span class="kitchen-dish-status">×${item.cancelledQty}<span class="badge red">退</span></span></div></div>`);
+      return itemLines;
+    }).join('');
+    const cardState = oldestPending !== null ? `<b>${oldestPending} 分钟</b>` : items.some(item => item.servedQty > 0) ? '<b>已上齐</b>' : '<b>退菜记录</b>';
+    return `<article class="kitchen-card ${tone}"><div class="kitchen-card-head"><div><div class="kitchen-code">${esc(heading)}</div><span class="minor">${service.covers} 人 · 下单 ${clock(service.openedAt)}</span>${gap !== null && gap >= state.settings.gapMinutes && oldestPending !== null ? '<br><span class="badge amber">出菜断档</span>' : ''}</div><div class="kitchen-meta">${cardState}${gap !== null && oldestPending !== null ? `<br>上道出菜后 ${gap} 分钟` : ''}</div></div><div class="kitchen-lines">${lines}</div></article>`;
   }).join('');
 }
 
@@ -386,7 +391,7 @@ function renderKitchen() {
     }
   }
   const aggregate = [...totals.values()].sort((a, b) => b.qty - a.qty).map(row => `<div class="aggregate-row"><b><span>${esc(row.name)}</span><span>×${row.qty}</span></b><small>${esc(row.places.join(' · '))}</small></div>`).join('');
-  return `${pageHead('后厨看单', '只显示菜品；出菜口上桌后自动更新。', `<div class="kitchen-tools"><select class="field-input" data-change="sort"><option value="time" ${sortMode === 'time' ? 'selected' : ''}>按下单时间</option><option value="table" ${sortMode === 'table' ? 'selected' : ''}>按桌号</option></select><button class="btn primary" data-action="fullscreen">⛶ 全屏显示</button></div>`, '后厨')}<div class="kitchen-layout"><div id="kitchen-screen"><div class="kitchen-list">${renderKitchenCards()}</div></div><aside class="panel kitchen-aggregate sticky"><div class="panel-head"><h2>同菜汇总</h2><span class="badge green">${[...totals.values()].reduce((sum, row) => sum + row.qty, 0)} 份</span></div>${aggregate || '<div class="minor">暂无待做菜品</div>'}</aside></div>`;
+  return `${pageHead('后厨看单', '出菜口标记后显示已上桌状态；退菜标记为退，完单后自动移除。', `<div class="kitchen-tools"><select class="field-input" data-change="sort"><option value="time" ${sortMode === 'time' ? 'selected' : ''}>按下单时间</option><option value="table" ${sortMode === 'table' ? 'selected' : ''}>按桌号</option></select><button class="btn primary" data-action="fullscreen">⛶ 全屏显示</button></div>`, '后厨')}<div class="kitchen-layout"><div id="kitchen-screen"><div class="kitchen-list">${renderKitchenCards()}</div></div><aside class="panel kitchen-aggregate sticky"><div class="panel-head"><h2>同菜汇总</h2><span class="badge green">${[...totals.values()].reduce((sum, row) => sum + row.qty, 0)} 份</span></div>${aggregate || '<div class="minor">暂无待做菜品</div>'}</aside></div>`;
 }
 
 function expoServiceCard(service) {
@@ -394,11 +399,11 @@ function expoServiceCard(service) {
   const pending = pendingItems(service).reduce((sum, item) => sum + item.pendingQty, 0);
   const served = rows.reduce((sum, item) => sum + item.servedQty, 0);
   const age = pending ? Math.max(...rows.filter(item => item.pendingQty).map(item => minutes(item.createdAt))) : 0;
-  const tone = service.status === 'complete' ? 'complete' : age >= state.settings.lateMinutes ? 'late' : age >= state.settings.warnMinutes ? 'overdue' : '';
+  const tone = age >= state.settings.lateMinutes ? 'late' : age >= state.settings.warnMinutes ? 'overdue' : '';
   const tableZh = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
   const tableFr = service.kind === 'takeaway' ? `À emporter ${service.displayCode.replace(/\D/g, '')}` : `Table ${service.displayCode}`;
   const renderRow = item => `<div class="expo-line ${item.type === 'drink' ? 'drink' : ''}"><div><div class="expo-name">${esc(item.nameZh)} ×${item.qty}</div><div class="expo-fr">${esc(item.nameFr)}</div><div class="expo-qty">${item.type === 'drink' ? '饮品 / Boisson · ' : ''}已上桌 / Servi ${item.servedQty} · 待出 / À servir ${item.pendingQty}${item.cancelledQty ? ` · 退菜 / Annulé ${item.cancelledQty}` : ''}</div>${item.pendingQty ? `<div class="expo-qty" data-expo-minutes="${esc(item.createdAt)}">等待 / Attente ${minutes(item.createdAt)} min</div>` : ''}${item.note ? `<div class="expo-note">${esc(item.note)}</div>` : ''}${item.added ? '<span class="badge green">加菜 / Ajout</span>' : ''}${item.rush ? '<span class="badge red">催菜 / Urgent</span>' : ''}</div>${item.pendingQty && service.status === 'open' ? `<div class="row-actions"><button class="btn small primary" data-action="serve" data-id="${item.id}" data-qty="1">上桌 1 份<br>Servir 1</button>${item.pendingQty > 1 ? `<button class="btn small" data-action="serve" data-id="${item.id}" data-qty="${item.pendingQty}">全部<br>Tout</button>` : ''}</div>` : `<span class="badge ${item.servedQty ? 'green' : 'red'}">${item.servedQty ? '✓' : '退 / Annulé'}</span>`}</div>`;
-  return `<article class="expo-card ${tone}"><div class="expo-head"><div><div class="expo-code">${esc(tableZh)}</div><div class="expo-code-fr">${esc(tableFr)}</div><div class="expo-meta">${service.covers} 人 / couverts · ${clock(service.openedAt)}${service.lastServedAt ? ` · 上道出菜后 / Depuis dernier service ${minutes(service.lastServedAt)} min` : ''}</div></div><div style="text-align:right"><span class="badge ${service.status === 'complete' ? 'green' : pending ? 'amber' : 'blue'}">${service.status === 'complete' ? '已完单 / Terminée' : `${pending} 待出 / À servir`}</span><div class="minor" style="margin-top:6px">${served} 已上桌 / Servi</div></div></div><div class="expo-content">${rows.length ? rows.map(renderRow).join('') : '<div class="empty">尚未下单 / Aucune commande</div>'}</div><div class="expo-foot">${service.status === 'complete' ? `<button class="btn primary" data-action="close-service" data-id="${service.id}">${service.kind === 'takeaway' ? '打包交付 / Remettre' : '翻台 / Libérer la table'}</button>` : `<button class="btn primary big" data-action="complete" data-id="${service.id}" ${pending || !rows.length ? 'disabled' : ''}>✓ 完单 / Terminer</button>${pending ? `<div class="hint">${pending} 份未上桌，全部上齐后可点完单。<br>${pending} portion(s) à servir avant de terminer.</div>` : ''}`}</div></article>`;
+  return `<article class="expo-card ${tone}"><div class="expo-head"><div><div class="expo-code">${esc(tableZh)}</div><div class="expo-code-fr">${esc(tableFr)}</div><div class="expo-meta">${service.covers} 人 / couverts · ${clock(service.openedAt)}${service.lastServedAt ? ` · 上道出菜后 / Depuis dernier service ${minutes(service.lastServedAt)} min` : ''}</div></div><div style="text-align:right"><span class="badge ${pending ? 'amber' : 'blue'}">${pending} 待出 / À servir</span><div class="minor" style="margin-top:6px">${served} 已上桌 / Servi</div></div></div><div class="expo-content">${rows.length ? rows.map(renderRow).join('') : '<div class="empty">尚未下单 / Aucune commande</div>'}</div><div class="expo-foot"><button class="btn primary big" data-action="complete" data-id="${service.id}" ${pending || !rows.length ? 'disabled' : ''}>✓ 完单 / Terminer</button>${pending ? `<div class="hint">${pending} 份未上桌，全部上齐后可点完单。<br>${pending} portion(s) à servir avant de terminer.</div>` : ''}</div></article>`;
 }
 
 function renderExpo() {
@@ -416,11 +421,10 @@ function renderAdmin() {
 
 function renderOverview() {
   const active = state.services.filter(s => s.status === 'open');
-  const complete = state.services.filter(s => s.status === 'complete');
   const portions = active.reduce((sum, service) => sum + pendingItems(service).reduce((n, item) => n + item.pendingQty, 0), 0);
   const soldOut = state.menu.filter(item => item.active && item.stock === 0).length;
   const stat = (label, number, sub) => `<div class="panel stat"><small>${label}</small><strong>${number}</strong><small>${sub}</small></div>`;
-  return `<div class="stats-grid">${stat(t('进行中服务单'), active.length, t('含打包单'))}${stat(t('待上桌份数'), portions, t('菜品及饮品'))}${stat(t('已完单待翻台'), complete.length, t('服务单仍可查看'))}${stat(t('沽清菜品'), soldOut, t('库存为 0'))}</div><div class="panel pad"><div class="panel-head"><h2>${t('当前服务单')}</h2></div>${state.services.length ? state.services.map(s => `<div class="list-row"><div><b>${esc(s.displayCode)} · ${t(s.kind === 'takeaway' ? '打包' : '堂食')}</b><small>${dateTime(s.openedAt)} · ${s.status === 'complete' ? t('已完单') : pendingItems(s).length + ' ' + t('待上桌')}</small></div><button class="btn small" data-action="open-service" data-id="${s.id}">${t('查看')}</button></div>`).join('') : `<div class="empty">${lang === 'fr' ? 'Aucun service ouvert' : '当前没有服务单'}</div>`}</div>`;
+  return `<div class="stats-grid">${stat(t('进行中服务单'), active.length, t('含打包单'))}${stat(t('待上桌份数'), portions, t('菜品及饮品'))}${stat(t('沽清菜品'), soldOut, t('库存为 0'))}</div><div class="panel pad"><div class="panel-head"><h2>${t('当前服务单')}</h2></div>${state.services.length ? state.services.map(s => `<div class="list-row"><div><b>${esc(s.displayCode)} · ${t(s.kind === 'takeaway' ? '打包' : '堂食')}</b><small>${dateTime(s.openedAt)} · ${s.status === 'complete' ? t('已完单') : pendingItems(s).length + ' ' + t('待上桌')}</small></div><button class="btn small" data-action="open-service" data-id="${s.id}">${t('查看')}</button></div>`).join('') : `<div class="empty">${lang === 'fr' ? 'Aucun service ouvert' : '当前没有服务单'}</div>`}</div>`;
 }
 
 function renderAdminMenu() {
@@ -473,7 +477,7 @@ function showReceipt(service, order = null) {
 function openCancel(itemId) {
   const item = allItems(activeService()).find(row => row.id === itemId);
   if (!item || !item.pendingQty) return;
-  showModal('退菜', `${item.nameZh} · 最多 ${item.pendingQty} 份`, `<form data-form="cancel-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>退菜份数</label><input class="field-input" name="qty" type="number" min="1" max="${item.pendingQty}" value="${item.pendingQty}" required></div><p class="hint">退菜后会在后厨保留划线记录。已上桌的份数不能退；如需改单，请重新点单。</p>${modalActions('确认退菜并通知后厨')}</form>`);
+  showModal('退菜', `${item.nameZh} · 最多 ${item.pendingQty} 份`, `<form data-form="cancel-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>退菜份数</label><input class="field-input" name="qty" type="number" min="1" max="${item.pendingQty}" value="${item.pendingQty}" required></div><p class="hint">后厨会保留退菜记录并标注“退”。已上桌的份数不能退；如需改单，请重新点单。</p>${modalActions('确认退菜并通知后厨')}</form>`);
 }
 
 function openMenuEditor(menuId = null) {
@@ -571,12 +575,6 @@ document.addEventListener('click', async event => {
   if (action === 'complete') {
     if (!confirm('确认所有菜已经上齐，并将此单标为完单？\nTous les plats ont-ils été servis ?')) return;
     if (await mutate(`/api/services/${key}/complete`)) toast('已完单 / Commande terminée');
-    return;
-  }
-  if (action === 'close-service') {
-    const service = state.services.find(row => row.id === (key || activeId));
-    if (!service || !confirm(service.kind === 'takeaway' ? '确认打包单已交付？' : `确认桌号 ${service.displayCode} 已翻台？新客人将生成新服务单。`)) return;
-    if (await mutate(`/api/services/${service.id}/close`)) { if (activeId === service.id) { activeId = null; clearBasket(); navigate('tables'); } else toast('已结束服务单'); }
     return;
   }
   if (action === 'fullscreen') {
