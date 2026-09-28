@@ -2,6 +2,7 @@ const app = document.getElementById('app');
 const modalRoot = document.getElementById('modal-root');
 const toastRoot = document.getElementById('toast-root');
 const printRoot = document.getElementById('print-root');
+const parisClockRoot = document.getElementById('paris-clock-root');
 
 let state = null;
 let auth = null;
@@ -79,7 +80,71 @@ const euro = cents => new Intl.NumberFormat('fr-FR', { style: 'currency', curren
 const clock = value => value ? new Date(value).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—';
 const dateTime = value => value ? new Date(value).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 const parisTimeFormatter = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
-const parisClockWidget = (extraClass = '') => `<div class="paris-clock ${extraClass}" aria-label="巴黎当前时间"><span class="paris-clock-indicator" aria-hidden="true"></span><span class="paris-clock-label"><b>PARIS</b><small>FRANCE</small></span><time class="paris-clock-time" data-paris-time>${parisTimeFormatter.format(new Date())}</time></div>`;
+const parisClockWidget = () => `<div id="paris-clock" class="paris-clock" role="group" tabindex="0" aria-label="巴黎当前时间，可拖动移动" title="拖动调整时钟位置"><span class="paris-clock-grip" aria-hidden="true"><i></i><i></i><i></i></span><span class="paris-clock-indicator" aria-hidden="true"></span><span class="paris-clock-label"><b>PARIS</b><small>FRANCE</small></span><time class="paris-clock-time" data-paris-time>${parisTimeFormatter.format(new Date())}</time></div>`;
+
+parisClockRoot.innerHTML = parisClockWidget();
+const parisClockElement = parisClockRoot.querySelector('.paris-clock');
+const parisClockPositionKey = 'lw-paris-clock-position';
+let parisClockDrag = null;
+
+function placeParisClock(left, top, persist = false) {
+  const margin = 8;
+  const maxLeft = Math.max(margin, window.innerWidth - parisClockRoot.offsetWidth - margin);
+  const maxTop = Math.max(margin, window.innerHeight - parisClockRoot.offsetHeight - margin);
+  const position = {
+    left: Math.min(maxLeft, Math.max(margin, left)),
+    top: Math.min(maxTop, Math.max(margin, top))
+  };
+  parisClockRoot.style.left = `${position.left}px`;
+  parisClockRoot.style.top = `${position.top}px`;
+  parisClockRoot.style.right = 'auto';
+  if (persist) {
+    try { localStorage.setItem(parisClockPositionKey, JSON.stringify(position)); } catch {}
+  }
+}
+
+try {
+  const savedPosition = JSON.parse(localStorage.getItem(parisClockPositionKey));
+  if (Number.isFinite(savedPosition?.left) && Number.isFinite(savedPosition?.top)) {
+    placeParisClock(savedPosition.left, savedPosition.top);
+  }
+} catch {}
+
+parisClockElement.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  const rect = parisClockRoot.getBoundingClientRect();
+  parisClockDrag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+  parisClockElement.classList.add('dragging');
+  parisClockElement.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+parisClockElement.addEventListener('pointermove', event => {
+  if (!parisClockDrag || parisClockDrag.pointerId !== event.pointerId) return;
+  placeParisClock(event.clientX - parisClockDrag.offsetX, event.clientY - parisClockDrag.offsetY);
+});
+function finishParisClockDrag(event) {
+  if (!parisClockDrag || (event && parisClockDrag.pointerId !== event.pointerId)) return;
+  parisClockDrag = null;
+  parisClockElement.classList.remove('dragging');
+  const rect = parisClockRoot.getBoundingClientRect();
+  placeParisClock(rect.left, rect.top, true);
+}
+parisClockElement.addEventListener('pointerup', finishParisClockDrag);
+parisClockElement.addEventListener('pointercancel', finishParisClockDrag);
+parisClockElement.addEventListener('keydown', event => {
+  const step = event.shiftKey ? 24 : 8;
+  const movement = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
+  if (!movement) return;
+  event.preventDefault();
+  const rect = parisClockRoot.getBoundingClientRect();
+  placeParisClock(rect.left + movement[0], rect.top + movement[1], true);
+});
+window.addEventListener('resize', () => {
+  if (parisClockRoot.style.left) {
+    const rect = parisClockRoot.getBoundingClientRect();
+    placeParisClock(rect.left, rect.top, true);
+  }
+});
 const minutes = value => Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60000));
 const allItems = service => service.orders.flatMap(order => order.items);
 const pendingItems = service => allItems(service).filter(item => item.pendingQty > 0);
@@ -208,13 +273,13 @@ function render() {
     : t(label);
   const connectionText = view === 'expo' ? (connected ? '服务器已连接 / Connecté' : '连接中断 / Déconnecté') : (connected ? '服务器已连接' : '连接中断');
   const brandCaption = view === 'kitchen' ? '后厨看单' : view === 'expo' ? '餐厅服务 / Service' : 'SERVICE SYSTEM';
-  app.innerHTML = `<div class="app-shell"><div id="connection-banner" class="connection-banner ${connected ? '' : 'visible'}">${view === 'kitchen' ? '与服务器断开连接，请检查网络。' : '与服务器断开连接。订单未确认发送时，请保持当前页面并重试。 / Connexion interrompue.'}</div><header class="topbar"><div class="brand"><div class="brand-mark">LW</div><div><b>Le Weilai</b><small>${brandCaption}</small></div></div><nav class="nav" aria-label="主导航">${tabs.map(([key, label]) => `<button class="${view === key || (view === 'order' && key === 'tables') ? 'active' : ''}" data-action="nav" data-view="${key}">${navText(key, label)}</button>`).join('')}</nav><div class="top-actions"><div id="sync-indicator" class="sync-state ${connected ? '' : 'offline'}"><i></i><span>${connectionText}</span></div>${['tables', 'order', 'admin'].includes(view) ? `<button class="btn small" data-action="language">${lang === 'zh' ? '中文 / FR' : 'FR / 中文'}</button>` : ''}${auth.pinRequired ? `<button class="btn small ghost" data-action="logout">${view === 'expo' ? '退出 / Quitter' : '退出'}</button>` : ''}${parisClockWidget()}</div></header><main class="container">${view === 'tables' ? renderTables() : view === 'order' ? renderOrder() : view === 'kitchen' ? renderKitchen() : view === 'expo' ? renderExpo() : renderAdmin()}</main></div>`;
+  app.innerHTML = `<div class="app-shell"><div id="connection-banner" class="connection-banner ${connected ? '' : 'visible'}">${view === 'kitchen' ? '与服务器断开连接，请检查网络。' : '与服务器断开连接。订单未确认发送时，请保持当前页面并重试。 / Connexion interrompue.'}</div><header class="topbar"><div class="brand"><div class="brand-mark">LW</div><div><b>Le Weilai</b><small>${brandCaption}</small></div></div><nav class="nav" aria-label="主导航">${tabs.map(([key, label]) => `<button class="${view === key || (view === 'order' && key === 'tables') ? 'active' : ''}" data-action="nav" data-view="${key}">${navText(key, label)}</button>`).join('')}</nav><div class="top-actions"><div id="sync-indicator" class="sync-state ${connected ? '' : 'offline'}"><i></i><span>${connectionText}</span></div>${['tables', 'order', 'admin'].includes(view) ? `<button class="btn small" data-action="language">${lang === 'zh' ? '中文 / FR' : 'FR / 中文'}</button>` : ''}${auth.pinRequired ? `<button class="btn small ghost" data-action="logout">${view === 'expo' ? '退出 / Quitter' : '退出'}</button>` : ''}</div></header><main class="container">${view === 'tables' ? renderTables() : view === 'order' ? renderOrder() : view === 'kitchen' ? renderKitchen() : view === 'expo' ? renderExpo() : renderAdmin()}</main></div>`;
   window.scrollTo(0, y);
   updateClocks();
 }
 
 function renderLogin() {
-  return `<div class="login-shell"><div class="login-clock">${parisClockWidget()}</div><form class="login-card" data-form="login"><div class="brand-mark">LW</div><h1>Le Weilai</h1><p>请输入员工或管理员 PIN，连接餐厅服务。</p><div class="field"><label for="pin">PIN</label><input class="field-input" id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required autofocus></div><button class="btn primary big" style="width:100%;margin-top:12px">进入系统</button></form></div>`;
+  return `<div class="login-shell"><form class="login-card" data-form="login"><div class="brand-mark">LW</div><h1>Le Weilai</h1><p>请输入员工或管理员 PIN，连接餐厅服务。</p><div class="field"><label for="pin">PIN</label><input class="field-input" id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required autofocus></div><button class="btn primary big" style="width:100%;margin-top:12px">进入系统</button></form></div>`;
 }
 
 function pageHead(title, description, actions = '', eyebrow = 'LE WEILAI / SERVICE') {
@@ -322,7 +387,7 @@ function renderKitchen() {
     }
   }
   const aggregate = [...totals.values()].sort((a, b) => b.qty - a.qty).map(row => `<div class="aggregate-row"><b><span>${esc(row.name)}</span><span>×${row.qty}</span></b><small>${esc(row.places.join(' · '))}</small></div>`).join('');
-  return `${pageHead('后厨看单', '只显示菜品；出菜口上桌后自动更新。', `<div class="kitchen-tools"><select class="field-input" data-change="sort"><option value="time" ${sortMode === 'time' ? 'selected' : ''}>按下单时间</option><option value="table" ${sortMode === 'table' ? 'selected' : ''}>按桌号</option></select><button class="btn primary" data-action="fullscreen">⛶ 全屏显示</button></div>`, '后厨')}<div class="kitchen-layout"><div id="kitchen-screen">${parisClockWidget('kitchen-fullscreen-clock')}<div class="kitchen-list">${renderKitchenCards()}</div></div><aside class="panel kitchen-aggregate sticky"><div class="panel-head"><h2>同菜汇总</h2><span class="badge green">${[...totals.values()].reduce((sum, row) => sum + row.qty, 0)} 份</span></div>${aggregate || '<div class="minor">暂无待做菜品</div>'}</aside></div>`;
+  return `${pageHead('后厨看单', '只显示菜品；出菜口上桌后自动更新。', `<div class="kitchen-tools"><select class="field-input" data-change="sort"><option value="time" ${sortMode === 'time' ? 'selected' : ''}>按下单时间</option><option value="table" ${sortMode === 'table' ? 'selected' : ''}>按桌号</option></select><button class="btn primary" data-action="fullscreen">⛶ 全屏显示</button></div>`, '后厨')}<div class="kitchen-layout"><div id="kitchen-screen"><div class="kitchen-list">${renderKitchenCards()}</div></div><aside class="panel kitchen-aggregate sticky"><div class="panel-head"><h2>同菜汇总</h2><span class="badge green">${[...totals.values()].reduce((sum, row) => sum + row.qty, 0)} 份</span></div>${aggregate || '<div class="minor">暂无待做菜品</div>'}</aside></div>`;
 }
 
 function expoServiceCard(service) {
@@ -587,6 +652,8 @@ document.addEventListener('submit', async event => {
 
 document.addEventListener('keydown', event => { if (event.key === 'Escape') closeModal(); });
 document.addEventListener('fullscreenchange', () => {
+  if (document.fullscreenElement?.id === 'kitchen-screen') document.fullscreenElement.append(parisClockRoot);
+  else document.body.append(parisClockRoot);
   if (!document.fullscreenElement && kitchenWakeLock) { kitchenWakeLock.release().catch(() => {}); kitchenWakeLock = null; }
 });
 window.addEventListener('hashchange', () => {
