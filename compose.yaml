@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8766:8766"
+    environment:
+      APP_PIN: ${APP_PIN:?Set a staff PIN}
+      ADMIN_PIN: ${ADMIN_PIN:?Set a separate admin PIN}
+      COOKIE_SECURE: "1"
+      EPSON_PRINTER_URL: ${EPSON_PRINTER_URL:-}
+      EPSON_PRINT_LANG: ${EPSON_PRINT_LANG:-fr}
+    volumes:
+      - restaurant_data:/app/data
+
+volumes:
+  restaurant_data:
