@@ -34,11 +34,11 @@ const words = {
   '本桌全部点单': 'Toute la commande', '未上桌': 'À servir',
   '全部': 'Tout', '热菜': 'Plats chauds', '凉菜': 'Entrées froides',
   '主食': 'Riz et nouilles', '汤品': 'Soupes', '饮料酒水': 'Boissons',
-  '菜品': 'Plats', '沽清': 'Épuisé', '剩余': 'Reste',
+  '菜品': 'Plats', '沽清': 'Épuisé', '剩余': 'En stock',
   '搜索中文、法文、编号或拼音': 'Rechercher nom, code ou initiales',
-  '点单篮': 'Commande', '暂无菜品': 'Aucun plat', '备注': 'Remarque',
+  '点单篮': 'Panier', '暂无菜品': 'Aucun plat', '备注': 'Remarque',
   '例如：少辣、过敏原': 'Ex. : peu épicé, allergie', '清空': 'Vider',
-  '确认下单': 'Confirmer', '合计': 'Total', '催菜': 'Relancer',
+  '确认下单': 'Confirmer la commande', '合计': 'Total', '催菜': 'Relancer',
   '退菜': 'Annuler un plat', '取消开单': 'Annuler l’ouverture',
   '小票': 'Ticket', '查看历史': 'Voir l’historique', '加菜': 'Ajouter des plats',
   '新单': 'Nouvelle commande', '订单已锁定': 'Commande verrouillée',
@@ -69,9 +69,121 @@ const words = {
   '饮品 · 只到出菜口': 'Boisson · Passe uniquement',
   '库存（留空为不限量）': 'Stock (vide = illimité)',
   '过敏原': 'Allergènes', '搜索别名 / 拼音': 'Alias / pinyin',
-  '上架': 'En vente', '保存菜品': 'Enregistrer le plat'
+  '上架': 'En vente', '保存菜品': 'Enregistrer le plat',
+  '打开': 'Ouvrir', '改菜': 'Modifier le plat', '后厨处理中': 'En cours en cuisine',
+  '转桌 / 并台': 'Changer de table / Regrouper',
+  '服务单已结束，桌位已自动释放。': 'Service terminé, la table est libérée.',
+  '未找到菜品': 'Aucun plat trouvé', '新建打包单': 'Nouvelle commande à emporter',
+  '请输入本桌人数后开台。': 'Indiquez le nombre de couverts pour ouvrir la table.',
+  '打包单有独立编号，不占桌位。': 'La commande à emporter a son propre numéro et n’occupe pas de table.',
+  '开台点单': 'Ouvrir la table et commander', '创建打包单': 'Créer la commande à emporter',
+  '发送后菜品将实时显示在后厨和出菜口。': 'Après l’envoi, les plats apparaîtront en temps réel en cuisine et au passe.',
+  '继续选菜': 'Continuer à choisir', '确认并发送': 'Confirmer et envoyer',
+  'Epson 重打': 'Réimprimer Epson', '浏览器打印': 'Imprimer depuis le navigateur',
+  '关闭': 'Fermer', '取消': 'Annuler', '退菜份数': 'Quantité à annuler',
+  '后厨会立即语音提示并闪烁显示，10 秒后自动退菜。已上桌的份数不能退。': 'La cuisine sera avertie par une annonce et un clignotement. L’annulation sera appliquée après 10 secondes. Les portions déjà servies ne peuvent pas être annulées.',
+  '确认退菜并通知后厨': 'Confirmer et avertir la cuisine',
+  '改为菜品': 'Remplacer par', '改后待出份数': 'Quantité à préparer', '新菜备注': 'Remarque pour le nouveau plat',
+  '后厨会立即语音提示并闪烁显示，10 秒后自动改菜。': 'La cuisine sera avertie par une annonce et un clignotement. La modification sera appliquée après 10 secondes.',
+  '确认改菜并通知后厨': 'Confirmer et avertir la cuisine', '没有可选的目标桌': 'Aucune autre table disponible',
+  '当前桌号：': 'Table actuelle : ',
+  '目标桌': 'Table de destination', '确认转桌或并台': 'Confirmer le changement ou le regroupement',
+  '最多': 'Maximum', '当前': 'Actuel', '合并到此桌': 'regroupement ici', '转到空桌': 'transfert vers cette table libre',
+  '仅供录单': 'Bon de commande',
+  '空桌会转移本桌服务单；已有服务单的桌会合并两桌菜品和人数。': 'La commande sera déplacée vers une table libre ; si la table est occupée, les plats et les couverts seront regroupés.',
+  '没有待做菜品': 'Aucun plat à préparer', '新订单会自动出现在这里': 'Les nouvelles commandes apparaîtront ici',
+  '服务器已连接': 'Serveur connecté', '连接中断': 'Connexion interrompue',
+  '与服务器断开连接，请检查网络。': 'Connexion au serveur interrompue. Vérifiez le réseau.',
+  '与服务器断开连接。订单未确认发送时，请保持当前页面并重试。': 'Connexion au serveur interrompue. Gardez cette page ouverte et réessayez si la commande n’a pas été confirmée.',
+  '订单已发送': 'Commande envoyée', '已通知后厨催菜': 'La cuisine a été avertie de l’urgence',
+  '本单菜品已全部上桌': 'Tous les plats de cette commande ont été servis',
+  '后厨已收到退菜提醒，10 秒后自动处理': 'La cuisine a reçu la demande d’annulation ; elle sera appliquée dans 10 secondes',
+  '后厨已收到改菜提醒，10 秒后自动处理': 'La cuisine a reçu la demande de modification ; elle sera appliquée dans 10 secondes',
+  '已上桌 / Servi': 'Servi', '撤销划单 / Service annulé': 'Service annulé',
+  '已完单，桌位已自动释放 / Commande terminée': 'Commande terminée ; la table est libérée',
+  '库存不足': 'Stock insuffisant', '订单不存在': 'Commande introuvable', '菜品不存在': 'Plat introuvable',
+  '服务单不存在': 'Service introuvable', '人数须为 1–30 人': 'Le nombre de couverts doit être compris entre 1 et 30',
+  '桌号不存在': 'Table introuvable', '该桌已开台，请打开当前服务单': 'Cette table est déjà ouverte. Ouvrez la commande en cours.',
+  '已有订单，不能取消开台': 'Impossible de fermer une table qui contient déjà une commande',
+  '重复请求编号冲突': 'Conflit de numéro de requête', '此单已完单，不能再加菜': 'Cette commande est terminée ; aucun plat ne peut être ajouté',
+  '请至少选择一道菜': 'Sélectionnez au moins un plat', '请求编号无效': 'Numéro de requête invalide',
+  '菜品已下架，请刷新菜单': 'Ce plat n’est plus disponible. Actualisez le menu.',
+  '每道菜数量须为 1–30': 'La quantité de chaque plat doit être comprise entre 1 et 30',
+  '备注不能超过 300 字': 'La remarque ne peut pas dépasser 300 caractères', '上桌数量超过待出份数': 'La quantité servie dépasse le nombre de portions en attente',
+  '此菜正在处理改菜或退菜请求，暂不能上桌': 'Ce plat fait l’objet d’une modification ou d’une annulation ; il ne peut pas encore être servi',
+  '没有待上桌菜品': 'Aucun plat en attente de service', '没有待出的菜': 'Aucun plat à servir',
+  '此单有改菜或退菜请求正在处理，暂不能一键上桌': 'Une modification ou une annulation est en cours ; le service de tous les plats est temporairement indisponible',
+  '退菜数量超过待出份数': 'La quantité annulée dépasse le nombre de portions en attente',
+  '该菜已有改菜或退菜请求在处理中': 'Une modification ou une annulation est déjà en cours pour ce plat',
+  '没有待出的份数可以修改': 'Aucune portion en attente ne peut être modifiée',
+  '替换菜品已下架，请刷新菜单': 'Le plat de remplacement n’est plus disponible. Actualisez le menu.',
+  '修改后的份数须为 1–30': 'La quantité modifiée doit être comprise entre 1 et 30',
+  '菜品内容没有变化': 'Aucune modification du plat', '还有菜未上桌，暂不能完单': 'Certains plats n’ont pas encore été servis ; la commande ne peut pas être terminée',
+  '没有已下单菜品': 'Aucun plat commandé',
+  '不能与当前桌并台': 'Impossible de regrouper la table avec elle-même', '请选择另一张桌': 'Choisissez une autre table',
+  '目标桌号不存在': 'La table de destination est introuvable', '目标桌已完单，请选择空桌': 'La commande de la table de destination est terminée. Choisissez une table libre.',
+  '并台后人数不能超过 30 人': 'Le regroupement ne peut pas dépasser 30 couverts',
+  'PIN 错误': 'PIN incorrect', '员工账号已停用，请联系管理员': 'Compte employé désactivé. Contactez un administrateur.',
+  '请先输入员工 PIN': 'Saisissez d’abord votre PIN employé', '此操作需要管理员 PIN': 'Cette action nécessite le PIN administrateur',
+  '管理员密码错误': 'Mot de passe administrateur incorrect', '页面或接口不存在': 'Page ou service introuvable',
+  '尝试次数过多，请 10 分钟后重试': 'Trop de tentatives. Réessayez dans 10 minutes.',
+  '未配置 Epson 打印机，可使用浏览器打印。': 'Imprimante Epson non configurée. Utilisez l’impression du navigateur.',
+  'Epson 打印机已确认接收小票': 'L’imprimante Epson a confirmé la réception du ticket',
+  '打印机未返回有效 ePOS 结果': 'L’imprimante n’a pas renvoyé de résultat ePOS valide',
+  '打印机未完成打印': 'L’impression n’a pas abouti',
+  'Epson 已确认接收小票': 'Epson a confirmé la réception du ticket', '请检查打印机': 'Vérifiez l’imprimante',
+  '服务器连接中断，订单未确认。请保持当前页面并重试。': 'Connexion au serveur interrompue. La commande n’est pas confirmée. Gardez cette page ouverte et réessayez.',
+  '管理员验证通过': 'Authentification administrateur réussie', '登录': 'Connexion', '请输入员工或管理员 PIN，连接餐厅服务。': 'Saisissez votre PIN employé ou administrateur pour vous connecter.',
+  '进入系统': 'Se connecter', '验证并进入后台': 'Vérifier et ouvrir la gestion',
+  '不辣': 'Sans piment', '不要辣': 'Sans piment', '少辣': 'Peu épicé', '微辣': 'Peu épicé',
+  '特辣': 'Très épicé', '不要葱': 'Sans ciboule', '少油': 'Peu d’huile', '过敏': 'Allergie',
+  '退出': 'Quitter', '小票预览': 'Aperçu du ticket', '已撤销划单 / Service annulé': 'Service annulé',
+  '菜单、库存、员工、历史记录和操作日志。': 'Menu, stocks, personnel, historique et journal des opérations.',
+  '菜品已保存': 'Plat enregistré', '库存已更新': 'Stock mis à jour', '设置已保存': 'Réglages enregistrés',
+  '只有进行中的堂食桌单可以转桌或并台': 'Seules les commandes en cours sur place peuvent être déplacées ou regroupées',
+  '此桌有改菜或退菜请求正在处理，请稍后再转桌或并台': 'Une modification ou une annulation est en cours pour cette table. Réessayez plus tard.',
+  '目标桌有改菜或退菜请求正在处理，请稍后再并台': 'Une modification ou une annulation est en cours pour la table de destination. Réessayez plus tard.',
+  '此单已完单': 'Cette commande est terminée',
+  '请求来源不匹配': 'Origine de la requête incorrecte',
+  '请求内容过长': 'Contenu de la requête trop volumineux',
+  '划单记录不存在': 'Action de service introuvable', '已超过 10 秒撤销时限': 'Le délai de 10 secondes pour annuler est dépassé',
+  '只能撤销该单最近一次划单': 'Seule la dernière action de service peut être annulée',
+  '请求失败 (500)': 'Échec de la requête (500)', '服务器处理失败，请查看日志': 'Erreur du serveur. Consultez les journaux.',
+  '正在连接餐厅服务…': 'Connexion au service du restaurant…', '正在读取订单…': 'Chargement des commandes…',
+  '无法连接餐厅服务。请确认本地服务器正在运行。': 'Impossible de joindre le service du restaurant. Vérifiez que le serveur local fonctionne.',
+  '过敏原：': 'Allergènes :'
 };
-const t = text => lang === 'fr' ? words[text] || text : text;
+const t = text => view === 'kitchen' ? text : lang === 'fr' ? words[text] || text : text;
+const uiText = (chinese, french) => view === 'kitchen' ? chinese
+  : view === 'expo' ? `${chinese} / ${french}`
+  : lang === 'fr' ? french : chinese;
+function frenchText(text) {
+  const value = String(text ?? '');
+  if (words[value]) return words[value];
+  const stock = value.match(/^(.+?) 库存不足$/);
+  if (stock) return `${state?.menu.find(item => item.nameZh === stock[1])?.nameFr || stock[1]} : stock insuffisant`;
+  const merged = value.match(/^已并入桌号：(.+)$/);
+  if (merged) return `Regroupé avec la table ${merged[1]}`;
+  const moved = value.match(/^已转到桌号：(.+)$/);
+  if (moved) return `Déplacé vers la table ${moved[1]}`;
+  const printer = value.match(/^订单已保存，但(.+)$/);
+  if (printer) return `Commande enregistrée, mais ${frenchText(printer[1])}`;
+  const printerFailure = value.match(/^Epson 打印失败：(.+)$/);
+  if (printerFailure) return `Échec de l’impression Epson : ${frenchText(printerFailure[1])}`;
+  const printerConnection = value.match(/^打印机连接失败：(.+)$/);
+  if (printerConnection) return `Échec de connexion à l’imprimante : ${printerConnection[1]}`;
+  const printerHttp = value.match(/^打印机返回 HTTP (\d+)$/);
+  if (printerHttp) return `L’imprimante a renvoyé HTTP ${printerHttp[1]}`;
+  const printerCode = value.match(/^打印机未完成打印：(.+)$/);
+  if (printerCode) return `L’imprimante n’a pas terminé l’impression : ${printerCode[1]}`;
+  return value;
+}
+function displayMessage(message) {
+  const value = String(message ?? '');
+  if (view === 'kitchen') return value;
+  if (view === 'expo') return value.includes(' / ') ? value : `${value} / ${frenchText(value)}`;
+  return lang === 'fr' ? frenchText(value) : value;
+}
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const euro = cents => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format((Number(cents) || 0) / 100);
 const clock = value => value ? new Date(value).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -84,8 +196,24 @@ const activeService = () => state?.services.find(service => service.id === activ
 const menuItem = menuId => state.menu.find(item => item.id === menuId);
 const count = items => items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
 const displayName = item => lang === 'fr' ? item.nameFr : item.nameZh;
-const serviceKind = service => service.kind === 'takeaway' ? t('打包单') : `${t('桌号')} ${service.displayCode}`;
+const serviceType = service => service.kind === 'takeaway' ? (lang === 'fr' ? 'Commande à emporter' : '打包单') : t('桌号');
+const serviceKind = service => `${serviceType(service)} ${service.kind === 'takeaway' ? '' : service.displayCode}`.trim();
 const serviceRows = service => service.orders.flatMap(order => order.items.map(item => ({ ...item, orderId: order.id })));
+const formatPeople = qty => lang === 'fr' ? `${qty} ${qty === 1 ? 'couvert' : 'couverts'}` : `${qty} 人`;
+const formatPortions = qty => lang === 'fr' ? `${qty} ${qty === 1 ? 'portion' : 'portions'}` : `${qty} 份`;
+const formatBilingualPeople = qty => `${qty} 人 / ${qty} ${qty === 1 ? 'couvert' : 'couverts'}`;
+const formatBilingualPortions = qty => `${qty} 份 / Tout servir (${qty} ${qty === 1 ? 'portion' : 'portions'})`;
+function displayNote(note, bilingual = view === 'expo') {
+  return String(note || '').split(/[；，、;]/).filter(Boolean).map(part => {
+    const french = words[part] || part;
+    return bilingual && french !== part ? `${part} / ${french}` : lang === 'fr' && view !== 'expo' ? french : part;
+  }).join(bilingual ? ' · ' : lang === 'fr' ? '; ' : '；');
+}
+const allergenTranslations = { '花生': 'Arachides', '大豆': 'Soja', '芝麻': 'Sésame', '小麦': 'Blé', '蛋': 'Œufs', '甲壳类': 'Crustacés', '亚硫酸盐': 'Sulfites' };
+function displayAllergens(allergens) {
+  if (lang !== 'fr') return allergens;
+  return String(allergens || '').split(/[、，,]/).map(value => allergenTranslations[value.trim()] || value.trim()).filter(Boolean).join(', ');
+}
 
 async function api(path, options = {}) {
   const response = await fetch(new URL(path.replace(/^\/+/, ''), document.baseURI), {
@@ -211,7 +339,7 @@ function connectEvents() {
 function toast(message, error = false) {
   const div = document.createElement('div');
   div.className = `toast${error ? ' error' : ''}`;
-  div.textContent = message;
+  div.textContent = displayMessage(message);
   toastRoot.append(div);
   setTimeout(() => div.remove(), 3500);
 }
@@ -220,18 +348,19 @@ function syncIndicator() {
   const indicator = document.getElementById('sync-indicator');
   if (!indicator) return;
   indicator.classList.toggle('offline', !connected);
-  indicator.querySelector('span').textContent = connected ? '服务器已连接' : '连接中断';
+  indicator.querySelector('span').textContent = displayMessage(connected ? '服务器已连接' : '连接中断');
   document.getElementById('connection-banner')?.classList.toggle('visible', !connected);
 }
 
 function showModal(title, subtitle, body, actions = '') {
-  modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-head"><div><h2>${esc(title)}</h2>${subtitle ? `<p>${esc(subtitle)}</p>` : ''}</div><button class="modal-close" data-action="close-modal" aria-label="关闭">✕</button></div>${body}${actions}</section></div>`;
+  modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-head"><div><h2>${esc(title)}</h2>${subtitle ? `<p>${esc(subtitle)}</p>` : ''}</div><button class="modal-close" data-action="close-modal" aria-label="${t('关闭')}">✕</button></div>${body}${actions}</section></div>`;
   modalRoot.querySelector('input:not([type="hidden"]),textarea,button')?.focus();
 }
 function closeModal() { modalRoot.innerHTML = ''; }
-const modalActions = (confirmLabel, cancelLabel = '取消') => `<div class="modal-actions"><button class="btn" type="button" data-action="close-modal">${cancelLabel}</button><button class="btn primary" type="submit">${confirmLabel}</button></div>`;
+const modalActions = (confirmLabel, cancelLabel = t('取消')) => `<div class="modal-actions"><button class="btn" type="button" data-action="close-modal">${cancelLabel}</button><button class="btn primary" type="submit">${confirmLabel}</button></div>`;
 
 function render() {
+  document.documentElement.lang = view === 'kitchen' ? 'zh-CN' : lang === 'fr' ? 'fr' : 'zh-CN';
   if (document.fullscreenElement?.id === 'kitchen-screen' && auth?.authorized && state && view === 'kitchen') {
     const screen = document.getElementById('kitchen-screen');
     screen.querySelector('.kitchen-list').innerHTML = renderKitchenCards();
@@ -239,22 +368,23 @@ function render() {
     screen.querySelector('.kitchen-alerts').innerHTML = renderKitchenAlerts();
     return;
   }
-  if (!auth) { app.innerHTML = '<div class="loading">正在连接餐厅服务…</div>'; return; }
+  if (!auth) { app.innerHTML = `<div class="loading">${t('正在连接餐厅服务…')}</div>`; return; }
   if (!auth.authorized) { app.innerHTML = renderLogin(); return; }
-  if (!state) { app.innerHTML = '<div class="loading">正在读取订单…</div>'; return; }
+  if (!state) { app.innerHTML = `<div class="loading">${t('正在读取订单…')}</div>`; return; }
   const y = window.scrollY;
   const tabs = [['tables', '点单'], ['kitchen', '后厨'], ['expo', '出菜口'], ['admin', '后台']];
   const navText = (key, label) => view === 'kitchen' ? label
     : view === 'expo' ? ({ tables: '点单 / Commandes', kitchen: '后厨 / Cuisine', expo: '出菜口 / Passe', admin: '后台 / Gestion' })[key]
     : t(label);
-  const connectionText = view === 'expo' ? (connected ? '服务器已连接 / Connecté' : '连接中断 / Déconnecté') : (connected ? '服务器已连接' : '连接中断');
-  const brandCaption = view === 'kitchen' ? '后厨看单' : view === 'expo' ? '餐厅服务 / Service' : 'SERVICE SYSTEM';
-  app.innerHTML = `<div class="app-shell"><div id="connection-banner" class="connection-banner ${connected ? '' : 'visible'}">${view === 'kitchen' ? '与服务器断开连接，请检查网络。' : '与服务器断开连接。订单未确认发送时，请保持当前页面并重试。 / Connexion interrompue.'}</div><header class="topbar"><div class="brand"><div class="brand-mark">LW</div><div><b>Le Weilai</b><small>${brandCaption}</small></div></div><nav class="nav" aria-label="主导航">${tabs.map(([key, label]) => `<button class="${view === key || (view === 'order' && key === 'tables') ? 'active' : ''}" data-action="nav" data-view="${key}">${navText(key, label)}</button>`).join('')}</nav><div class="top-actions"><div id="sync-indicator" class="sync-state ${connected ? '' : 'offline'}"><i></i><span>${connectionText}</span></div>${auth.actor ? `<span class="actor-name">${esc(auth.actor)}</span>` : ''}${['tables', 'order', 'admin'].includes(view) ? `<button class="btn small" data-action="language">${lang === 'zh' ? '中文 / FR' : 'FR / 中文'}</button>` : ''}${auth.pinRequired ? `<button class="btn small ghost" data-action="logout">${view === 'expo' ? '退出 / Quitter' : '退出'}</button>` : ''}</div></header><main class="container">${view === 'tables' ? renderTables() : view === 'order' ? renderOrder() : view === 'kitchen' ? renderKitchen() : view === 'expo' ? renderExpo() : auth.adminUnlocked ? renderAdmin() : renderAdminGate()}</main></div>`;
+  const connectionText = view === 'expo' ? (connected ? '服务器已连接 / Connecté' : '连接中断 / Déconnecté') : displayMessage(connected ? '服务器已连接' : '连接中断');
+  const brandCaption = view === 'kitchen' ? '后厨看单' : view === 'expo' ? '餐厅服务 / Service' : lang === 'fr' ? 'SERVICE' : 'SERVICE SYSTEM';
+  const connectionBanner = view === 'kitchen' ? '与服务器断开连接，请检查网络。' : displayMessage('与服务器断开连接。订单未确认发送时，请保持当前页面并重试。');
+  app.innerHTML = `<div class="app-shell"><div id="connection-banner" class="connection-banner ${connected ? '' : 'visible'}">${connectionBanner}</div><header class="topbar"><div class="brand"><div class="brand-mark">LW</div><div><b>Le Weilai</b><small>${brandCaption}</small></div></div><nav class="nav" aria-label="${lang === 'fr' && view !== 'kitchen' ? 'Navigation principale' : '主导航'}">${tabs.map(([key, label]) => `<button class="${view === key || (view === 'order' && key === 'tables') ? 'active' : ''}" data-action="nav" data-view="${key}">${navText(key, label)}</button>`).join('')}</nav><div class="top-actions"><div id="sync-indicator" class="sync-state ${connected ? '' : 'offline'}"><i></i><span>${connectionText}</span></div>${auth.actor ? `<span class="actor-name">${esc(auth.actor)}</span>` : ''}${['tables', 'order', 'admin'].includes(view) ? `<button class="btn small" data-action="language">${lang === 'zh' ? '中文 / FR' : 'FR / 中文'}</button>` : ''}${auth.pinRequired ? `<button class="btn small ghost" data-action="logout">${view === 'expo' ? '退出 / Quitter' : t('退出')}</button>` : ''}</div></header><main class="container">${view === 'tables' ? renderTables() : view === 'order' ? renderOrder() : view === 'kitchen' ? renderKitchen() : view === 'expo' ? renderExpo() : auth.adminUnlocked ? renderAdmin() : renderAdminGate()}</main></div>`;
   window.scrollTo(0, y);
 }
 
 function renderLogin() {
-  return `<div class="login-shell"><form class="login-card" data-form="login"><div class="brand-mark">LW</div><h1>Le Weilai</h1><p>请输入员工或管理员 PIN，连接餐厅服务。</p><div class="field"><label for="pin">PIN</label><input class="field-input" id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required autofocus></div><button class="btn primary big" style="width:100%;margin-top:12px">进入系统</button></form></div>`;
+  return `<div class="login-shell"><form class="login-card" data-form="login"><div style="display:flex;justify-content:flex-end"><button class="btn small" type="button" data-action="language">${lang === 'zh' ? '中文 / FR' : 'FR / 中文'}</button></div><div class="brand-mark">LW</div><h1>Le Weilai</h1><p>${t('请输入员工或管理员 PIN，连接餐厅服务。')}</p><div class="field"><label for="pin">PIN</label><input class="field-input" id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required autofocus></div><button class="btn primary big" style="width:100%;margin-top:12px">${t('进入系统')}</button></form></div>`;
 }
 
 function pageHead(title, description, actions = '', eyebrow = 'LE WEILAI / SERVICE') {
@@ -277,19 +407,19 @@ function renderTables() {
     const service = serviceForTable(table.id);
     const pending = service ? pendingItems(service).reduce((sum, item) => sum + item.pendingQty, 0) : 0;
     const status = service ? t('点单中') : t('空桌');
-    return `<button class="table-card ${tableTone(service)}" data-action="table" data-id="${esc(table.id)}"><div class="table-top"><div><span class="minor">${t('桌号')}</span><div class="table-num">${esc(table.id)}</div></div><span class="badge ${service ? 'amber' : ''}">${status}</span></div><div class="table-bottom"><strong>${service ? service.covers : 0} ${t('人')}</strong><span>${service ? `${pending} ${t('待上桌')}` : t(table.zone)}</span></div></button>`;
+    return `<button class="table-card ${tableTone(service)}" data-action="table" data-id="${esc(table.id)}"><div class="table-top"><div><span class="minor">${t('桌号')}</span><div class="table-num">${esc(table.id)}</div></div><span class="badge ${service ? 'amber' : ''}">${status}</span></div><div class="table-bottom"><strong>${formatPeople(service ? service.covers : 0)}</strong><span>${service ? (lang === 'fr' ? `${pending} à servir` : `${pending} 待上桌`) : t(table.zone)}</span></div></button>`;
   };
   const groups = ['室内', '露台'].map(zone => `<div class="zone-label">${t(zone)}</div><div class="table-grid">${state.tables.filter(table => table.zone === zone).map(tableTile).join('')}</div>`).join('');
   const takeaways = state.services.filter(s => s.kind === 'takeaway').reverse();
-  return `${pageHead(t('选择桌位'), t('选择桌位开始点单，也可从单独入口创建打包单。'))}<div class="split-layout"><section class="panel pad">${groups}</section><aside class="panel pad sticky"><button class="takeaway-entry" data-action="new-takeaway">＋ ${t('单独打包入口')}</button><div class="panel-head"><h2>${t('打包单')}</h2><span class="badge blue">${takeaways.length}</span></div>${takeaways.length ? takeaways.map(service => `<div class="list-row"><div><b>${esc(service.displayCode)}</b><small>${clock(service.openedAt)} · ${service.status === 'complete' ? t('已完单') : pendingItems(service).length + ' ' + t('待上桌')}</small></div><button class="btn small" data-action="open-service" data-id="${service.id}">打开</button></div>`).join('') : `<div class="empty">${t('暂无打包单')}</div>`}<div class="list-row"><span>${t('点单中')}</span><strong>${occupied.filter(s => s.status === 'open').length}</strong></div><div class="list-row"><span>${t('待上桌')}</span><strong>${waiting} ${t('份')}</strong></div><p class="hint">${t('库存由服务器核对，多台设备会同步。')}</p></aside></div>`;
+  return `${pageHead(t('选择桌位'), t('选择桌位开始点单，也可从单独入口创建打包单。'))}<div class="split-layout"><section class="panel pad">${groups}</section><aside class="panel pad sticky"><button class="takeaway-entry" data-action="new-takeaway">＋ ${t('单独打包入口')}</button><div class="panel-head"><h2>${t('打包单')}</h2><span class="badge blue">${takeaways.length}</span></div>${takeaways.length ? takeaways.map(service => `<div class="list-row"><div><b>${esc(service.displayCode)}</b><small>${clock(service.openedAt)} · ${service.status === 'complete' ? t('已完单') : (lang === 'fr' ? `${pendingItems(service).length} à servir` : `${pendingItems(service).length} 待上桌`)}</small></div><button class="btn small" data-action="open-service" data-id="${service.id}">${t('打开')}</button></div>`).join('') : `<div class="empty">${t('暂无打包单')}</div>`}<div class="list-row"><span>${t('点单中')}</span><strong>${occupied.filter(s => s.status === 'open').length}</strong></div><div class="list-row"><span>${t('待上桌')}</span><strong>${formatPortions(waiting)}</strong></div><p class="hint">${t('库存由服务器核对，多台设备会同步。')}</p></aside></div>`;
 }
 
 function orderLine(item, service) {
   const pending = item.pendingQty;
-  const status = pending ? `<span class="badge amber">${t('待上桌')} ${pending}</span>` : item.servedQty ? `<span class="badge green">${t('已上桌')} ${item.servedQty}</span>` : `<span class="badge red">${t('已退菜')}</span>`;
+  const status = pending ? `<span class="badge amber">${lang === 'fr' ? `${pending} à servir` : `待上桌 ${pending}`}</span>` : item.servedQty ? `<span class="badge green">${lang === 'fr' ? `${item.servedQty} portion${item.servedQty > 1 ? 's' : ''} servie${item.servedQty > 1 ? 's' : ''}` : `已上桌 ${item.servedQty}`}</span>` : `<span class="badge red">${t('已退菜')}</span>`;
   const changePending = (service.pendingChanges || []).some(change => change.itemId === item.id);
-  const actions = pending && service.status === 'open' ? `<div class="row-actions"><button class="btn small" data-action="change-item" data-id="${item.id}" ${changePending ? 'disabled' : ''}>改菜</button><button class="btn small danger" data-action="cancel-item" data-id="${item.id}" ${changePending ? 'disabled' : ''}>${t('退菜')}</button></div>` : '';
-  return `<div class="ordered-line"><div><div class="line-main">${esc(displayName(item))} × ${item.qty} ${status}</div><div class="line-sub">${esc(item.note || '')}${item.cancelledQty ? ` · ${t('已退菜')} ${item.cancelledQty}` : ''} · ${clock(item.createdAt)}${changePending ? ' · 后厨处理中' : ''}</div></div>${actions}</div>`;
+  const actions = pending && service.status === 'open' ? `<div class="row-actions"><button class="btn small" data-action="change-item" data-id="${item.id}" ${changePending ? 'disabled' : ''}>${t('改菜')}</button><button class="btn small danger" data-action="cancel-item" data-id="${item.id}" ${changePending ? 'disabled' : ''}>${t('退菜')}</button></div>` : '';
+  return `<div class="ordered-line"><div><div class="line-main">${esc(displayName(item))} × ${item.qty} ${status}</div><div class="line-sub">${esc(displayNote(item.note))}${item.cancelledQty ? ` · ${t('已退菜')} ${item.cancelledQty}` : ''} · ${clock(item.createdAt)}${changePending ? ` · ${t('后厨处理中')}` : ''}</div></div>${actions}</div>`;
 }
 
 function renderOrder() {
@@ -301,27 +431,27 @@ function renderOrder() {
   const isOpen = service.status === 'open';
   const total = basket.reduce((sum, line) => sum + (menuItem(line.menuId)?.priceCents || 0) * line.qty, 0);
   const ordered = rows.length ? `<div class="order-items">${rows.map(item => orderLine(item, service)).join('')}</div>` : `<div class="empty">${t('暂无菜品')}</div>`;
-  const headline = `<div class="service-headline"><strong>${esc(serviceKind(service))}</strong><span class="badge ${isOpen ? 'amber' : 'green'}">${isOpen ? t('正在点单') : t('已完单')}</span><small>${service.covers} ${t('人')} · ${clock(service.openedAt)}</small></div>`;
-  const statusPanel = `<section class="panel order-status">${headline}<div class="panel-head" style="margin:16px 0 0"><h2>${t('本桌全部点单')}</h2><div class="row-actions">${pending.length && isOpen ? `<button class="btn small warn" data-action="rush">${t('催菜')}</button>` : ''}${service.kind === 'dine-in' && isOpen ? '<button class="btn small" data-action="move-service">转桌 / 并台</button>' : ''}${!rows.length && isOpen ? `<button class="btn small danger" data-action="discard">${t('取消开单')}</button>` : ''}${rows.length ? `<button class="btn small" data-action="receipt-latest">${t('小票')}</button>` : ''}${state.printer?.configured && latestOrder ? `<button class="btn small" data-action="epson-reprint" data-id="${latestOrder.id}">Epson 重打</button>` : ''}</div></div>${ordered}${service.status === 'complete' ? '<p class="hint">服务单已结束，桌位已自动释放。</p>' : ''}</section>`;
+  const headline = `<div class="service-headline"><strong>${esc(serviceKind(service))}</strong><span class="badge ${isOpen ? 'amber' : 'green'}">${isOpen ? t('正在点单') : t('已完单')}</span><small>${formatPeople(service.covers)} · ${clock(service.openedAt)}</small></div>`;
+  const statusPanel = `<section class="panel order-status">${headline}<div class="panel-head" style="margin:16px 0 0"><h2>${t('本桌全部点单')}</h2><div class="row-actions">${pending.length && isOpen ? `<button class="btn small warn" data-action="rush">${t('催菜')}</button>` : ''}${service.kind === 'dine-in' && isOpen ? `<button class="btn small" data-action="move-service">${t('转桌 / 并台')}</button>` : ''}${!rows.length && isOpen ? `<button class="btn small danger" data-action="discard">${t('取消开单')}</button>` : ''}${rows.length ? `<button class="btn small" data-action="receipt-latest">${t('小票')}</button>` : ''}${state.printer?.configured && latestOrder ? `<button class="btn small" data-action="epson-reprint" data-id="${latestOrder.id}">${t('Epson 重打')}</button>` : ''}</div></div>${ordered}${service.status === 'complete' ? `<p class="hint">${t('服务单已结束，桌位已自动释放。')}</p>` : ''}</section>`;
   const actions = `<button class="btn" data-action="nav" data-view="tables">← ${t('返回桌位')}</button>`;
   if (!isOpen) return `${pageHead(t('桌位点单'), '', actions)}${statusPanel}`;
   const categories = ['全部', ...new Set(state.menu.filter(m => m.active).map(m => m.category))];
   const basketHtml = basket.length ? basket.map(line => {
     const item = menuItem(line.menuId); if (!item) return '';
-    return `<div class="basket-row"><div class="basket-row-top"><span>${esc(displayName(item))}</span><span>${euro(item.priceCents * line.qty)}</span></div><div class="quantity"><button data-action="quantity" data-id="${item.id}" data-delta="-1">−</button><strong>${line.qty}</strong><button data-action="quantity" data-id="${item.id}" data-delta="1">＋</button><span class="minor">${esc(item.code)}</span></div><div class="quick-tags">${(state.settings.noteTags || []).map(tag => `<button class="quick-tag ${(line.tags || []).includes(tag) ? 'active' : ''}" data-action="quick-tag" data-id="${item.id}" data-tag="${esc(tag)}">${esc(tag)}</button>`).join('')}</div><input class="field-input" data-note="${item.id}" value="${esc(line.note)}" placeholder="${t('例如：少辣、过敏原')}" aria-label="${t('备注')} ${esc(item.nameZh)}"></div>`;
+    return `<div class="basket-row"><div class="basket-row-top"><span>${esc(displayName(item))}</span><span>${euro(item.priceCents * line.qty)}</span></div><div class="quantity"><button data-action="quantity" data-id="${item.id}" data-delta="-1" aria-label="−">−</button><strong>${line.qty}</strong><button data-action="quantity" data-id="${item.id}" data-delta="1" aria-label="＋">＋</button><span class="minor">${esc(item.code)}</span></div><div class="quick-tags">${(state.settings.noteTags || []).map(tag => `<button class="quick-tag ${(line.tags || []).includes(tag) ? 'active' : ''}" data-action="quick-tag" data-id="${item.id}" data-tag="${esc(tag)}">${esc(t(tag))}</button>`).join('')}</div><input class="field-input" data-note="${item.id}" value="${esc(displayNote(line.note, false))}" placeholder="${t('例如：少辣、过敏原')}" aria-label="${t('备注')} ${esc(displayName(item))}"></div>`;
   }).join('') : `<div class="empty">${t('暂无菜品')}</div>`;
-  return `${pageHead(t('桌位点单'), `${service.kind === 'takeaway' ? t('打包单') : t('桌号')} · ${esc(service.displayCode)}`, actions)}${statusPanel}<div class="order-columns"><section class="panel pad"><div class="toolbar"><input class="search" id="menu-query" placeholder="${t('搜索中文、法文、编号或拼音')}" value="${esc(query)}"></div><div class="categories">${categories.map(c => `<button class="category ${category === c ? 'active' : ''}" data-action="category" data-value="${esc(c)}">${t(c)}</button>`).join('')}</div><div class="menu-grid" id="menu-grid">${renderMenu()}</div></section><aside class="panel basket sticky"><div class="panel-head"><h2>${t('点单篮')}</h2><span class="badge green">${count(basket)} ${t('份')}</span></div>${basketHtml}<div class="total"><span>${t('合计')}</span><b>${euro(total)}</b></div><div class="basket-actions"><button class="btn primary big" data-action="review-order" ${basket.length ? '' : 'disabled'}>${t('确认下单')} →</button><button class="btn" data-action="clear-basket" ${basket.length ? '' : 'disabled'}>${t('清空')}</button></div><p class="hint">${rows.length ? t('加菜') : t('新单')} · ${t('库存由服务器核对，多台设备会同步。')}</p></aside></div>`;
+  return `${pageHead(t('桌位点单'), `${serviceType(service)} · ${esc(service.displayCode)}`, actions)}${statusPanel}<div class="order-columns"><section class="panel pad"><div class="toolbar"><input class="search" id="menu-query" placeholder="${t('搜索中文、法文、编号或拼音')}" value="${esc(query)}"></div><div class="categories">${categories.map(c => `<button class="category ${category === c ? 'active' : ''}" data-action="category" data-value="${esc(c)}">${t(c)}</button>`).join('')}</div><div class="menu-grid" id="menu-grid">${renderMenu()}</div></section><aside class="panel basket sticky"><div class="panel-head"><h2>${t('点单篮')}</h2><span class="badge green">${formatPortions(count(basket))}</span></div>${basketHtml}<div class="total"><span>${t('合计')}</span><b>${euro(total)}</b></div><div class="basket-actions"><button class="btn primary big" data-action="review-order" ${basket.length ? '' : 'disabled'}>${t('确认下单')} →</button><button class="btn" data-action="clear-basket" ${basket.length ? '' : 'disabled'}>${t('清空')}</button></div><p class="hint">${rows.length ? t('加菜') : t('新单')} · ${t('库存由服务器核对，多台设备会同步。')}</p></aside></div>`;
 }
 
 function renderMenu() {
   const term = query.trim().toLocaleLowerCase();
   const items = state.menu.filter(item => item.active && (category === '全部' || item.category === category))
     .filter(item => !term || `${item.nameZh} ${item.nameFr} ${item.code} ${item.aliases}`.toLocaleLowerCase().includes(term));
-  if (!items.length) return '<div class="empty" style="grid-column:1/-1">未找到菜品 / Aucun plat</div>';
+  if (!items.length) return `<div class="empty" style="grid-column:1/-1">${t('未找到菜品')}</div>`;
   return items.map(item => {
     const sold = item.stock === 0;
     const inBasket = basket.find(line => line.menuId === item.id)?.qty || 0;
-    return `<article class="menu-card ${sold ? 'soldout' : ''}"><div><div class="menu-name">${esc(displayName(item))}</div><div class="menu-fr">${esc(lang === 'fr' ? item.nameZh : item.nameFr)}</div></div><div class="menu-card-bottom"><div><div class="price">${euro(item.priceCents)}</div><div class="menu-fr">${esc(item.code)} · ${t(item.category)}${item.allergens ? ` · ${esc(item.allergens)}` : ''}</div>${item.stock !== null ? `<div class="menu-fr">${sold ? t('沽清') : `${t('剩余')} ${item.stock}`}</div>` : ''}</div><button class="add-button" data-action="add-item" data-id="${item.id}" ${sold ? 'disabled' : ''} aria-label="添加 ${esc(item.nameZh)}">${sold ? '×' : inBasket ? `+${inBasket}` : '+'}</button></div></article>`;
+    return `<article class="menu-card ${sold ? 'soldout' : ''}"><div><div class="menu-name">${esc(displayName(item))}</div><div class="menu-fr">${esc(lang === 'fr' ? item.nameZh : item.nameFr)}</div></div><div class="menu-card-bottom"><div><div class="price">${euro(item.priceCents)}</div><div class="menu-fr">${esc(item.code)} · ${t(item.category)}${item.allergens ? ` · ${lang === 'fr' ? `${t('过敏原：')} ${displayAllergens(item.allergens)}` : `过敏原： ${item.allergens}`}` : ''}</div>${item.stock !== null ? `<div class="menu-fr">${sold ? t('沽清') : `${t('剩余')} ${item.stock}`}</div>` : ''}</div><button class="add-button" data-action="add-item" data-id="${item.id}" ${sold ? 'disabled' : ''} aria-label="${lang === 'fr' ? `Ajouter ${esc(item.nameFr)}` : `添加 ${esc(item.nameZh)}`}">${sold ? '×' : inBasket ? `+${inBasket}` : '+'}</button></div></article>`;
   }).join('');
 }
 
@@ -343,7 +473,7 @@ function renderKitchenCards() {
     const tone = oldestPending >= state.settings.lateMinutes ? 'late' : oldestPending >= state.settings.warnMinutes ? 'overdue' : '';
     const rushed = items.some(item => item.rush);
     const heading = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
-    const lines = items.map(item => {
+  const lines = items.map(item => {
       const allergy = item.allergens && /过敏|allerg/i.test(item.note);
       return `<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span>×${item.pendingQty}</span></div><div class="kitchen-line-meta">${item.added ? '<span class="badge green">加菜</span>' : ''}${item.rush ? '<span class="badge red">催菜</span>' : ''}${allergy ? '<span class="badge red">⚠ 过敏提醒</span>' : ''}<span class="kitchen-wait-time" data-waiting-since="${esc(item.createdAt)}">已等待 ${minutes(item.createdAt)} 分钟</span></div>${item.note ? `<div class="kitchen-note">${allergy ? '⚠ ' : ''}${esc(item.note)}</div>` : ''}</div>`;
     }).join('');
@@ -374,11 +504,22 @@ function renderKitchenAlerts() {
   if (!alerts.length) return '';
   announcePendingChanges();
   return alerts.map(({ service, change }) => {
-    const table = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
+    const table = service.kind === 'takeaway' ? `打包单：${service.displayCode}` : `桌号：${service.displayCode}`;
     const label = change.kind === 'cancel' ? '退菜' : '改菜';
     const dish = change.kind === 'change' && change.newName
       ? `${change.oldName} → ${change.newName}` : change.oldName;
     const qty = change.kind === 'cancel' ? change.qty : change.newQty;
+    if (view === 'expo') {
+      const oldItem = serviceRows(service).find(item => item.id === change.itemId);
+      const oldMenu = state.menu.find(item => item.nameZh === change.oldName);
+      const newMenu = change.newName ? state.menu.find(item => item.nameZh === change.newName) : null;
+      const tableFr = service.kind === 'takeaway' ? `À emporter ${service.displayCode.replace(/\D/g, '')}` : `Table ${service.displayCode}`;
+      const dishFr = change.kind === 'change' && change.newName
+        ? `${oldMenu?.nameFr || oldItem?.nameFr || change.oldName} → ${newMenu?.nameFr || change.newName}`
+        : oldMenu?.nameFr || oldItem?.nameFr || change.oldName;
+      const labelFr = change.kind === 'cancel' ? 'Annulation de plat' : 'Modification de plat';
+      return `<article class="kitchen-alert"><strong>⚠ ${label} / ${labelFr}</strong><div class="kitchen-alert-dish">${esc(table)} · ${esc(dish)} ×${qty}<br>${esc(tableFr)} · ${esc(dishFr)} ×${qty}</div><small>10 秒后自动处理 / Traitement automatique dans 10 s</small></article>`;
+    }
     return `<article class="kitchen-alert"><strong>⚠ ${label}</strong><div class="kitchen-alert-dish">${esc(table)} · ${esc(dish)} ×${qty}</div><small>10 秒后自动处理</small></article>`;
   }).join('');
 }
@@ -394,10 +535,10 @@ function expoServiceCard(service) {
   const served = rows.reduce((sum, item) => sum + item.servedQty, 0);
   const age = pending ? Math.max(...rows.filter(item => item.pendingQty).map(item => minutes(item.createdAt))) : 0;
   const tone = age >= state.settings.lateMinutes ? 'late' : age >= state.settings.warnMinutes ? 'overdue' : '';
-  const tableZh = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
+  const tableZh = service.kind === 'takeaway' ? `打包单：${service.displayCode}` : `桌号：${service.displayCode}`;
   const tableFr = service.kind === 'takeaway' ? `À emporter ${service.displayCode.replace(/\D/g, '')}` : `Table ${service.displayCode}`;
-  const renderRow = item => `<div class="expo-line ${item.type === 'drink' ? 'drink' : ''}"><div><div class="expo-name">${esc(item.nameZh)} ×${item.qty}</div><div class="expo-fr">${esc(item.nameFr)}</div><div class="expo-qty">${item.type === 'drink' ? '饮品 / Boisson · ' : ''}已上桌 / Servi ${item.servedQty} · 待出 / À servir ${item.pendingQty}${item.cancelledQty ? ` · 退菜 / Annulé ${item.cancelledQty}` : ''}</div>${item.note ? `<div class="expo-note">${esc(item.note)}</div>` : ''}${item.added ? '<span class="badge green">加菜 / Ajout</span>' : ''}${item.rush ? '<span class="badge red">催菜 / Urgent</span>' : ''}</div>${item.pendingQty && service.status === 'open' ? `<div class="row-actions"><button class="btn small primary" data-action="serve" data-id="${item.id}" data-qty="1">上桌 1 份<br>Servir 1</button>${item.pendingQty > 1 ? `<button class="btn small" data-action="serve" data-id="${item.id}" data-qty="${item.pendingQty}">全部<br>Tout</button>` : ''}</div>` : `<span class="badge ${item.servedQty ? 'green' : 'red'}">${item.servedQty ? '✓' : '退 / Annulé'}</span>`}</div>`;
-  return `<article class="expo-card ${tone}"><div class="expo-head"><div><div class="expo-code">${esc(tableZh)}</div><div class="expo-code-fr">${esc(tableFr)}</div><div class="expo-meta">${service.covers} 人 / couverts · ${clock(service.openedAt)}</div></div><div style="text-align:right"><span class="badge ${pending ? 'amber' : 'blue'}">${pending} 待出 / À servir</span><div class="minor" style="margin-top:6px">${served} 已上桌 / Servi</div></div></div><div class="expo-content">${rows.length ? rows.map(renderRow).join('') : '<div class="empty">尚未下单 / Aucune commande</div>'}</div><div class="expo-foot">${pending ? `<button class="btn primary big" data-action="serve-all" data-id="${service.id}">✓ 一键上桌 ${pending} 份 / Tout servir</button>` : ''}<button class="btn ${pending ? '' : 'primary'} big" data-action="complete" data-id="${service.id}" ${pending || !rows.length ? 'disabled' : ''}>✓ 完单 / Terminer</button>${pending ? `<div class="hint">${pending} 份未上桌，逐份点击或一键上桌；全部上齐后点完单释放桌位。<br>${pending} portion(s) à servir avant de terminer.</div>` : ''}</div></article>`;
+  const renderRow = item => `<div class="expo-line ${item.type === 'drink' ? 'drink' : ''}"><div><div class="expo-name">${esc(item.nameZh)} ×${item.qty}</div><div class="expo-fr">${esc(item.nameFr)}</div><div class="expo-qty">${item.type === 'drink' ? '饮品 / Boisson · ' : ''}已上桌 / Servi ${item.servedQty} · 待出 / À servir ${item.pendingQty}${item.cancelledQty ? ` · 退菜 / Annulé ${item.cancelledQty}` : ''}</div>${item.note ? `<div class="expo-note">备注 / Remarque : ${esc(displayNote(item.note, true))}</div>` : ''}${item.added ? '<span class="badge green">加菜 / Ajout</span>' : ''}${item.rush ? '<span class="badge red">催菜 / Urgent</span>' : ''}</div>${item.pendingQty && service.status === 'open' ? `<div class="row-actions"><button class="btn small primary" data-action="serve" data-id="${item.id}" data-qty="1">上桌 1 份<br>Servir 1</button>${item.pendingQty > 1 ? `<button class="btn small" data-action="serve" data-id="${item.id}" data-qty="${item.pendingQty}">全部<br>Tout</button>` : ''}</div>` : `<span class="badge ${item.servedQty ? 'green' : 'red'}">${item.servedQty ? '✓' : '退 / Annulé'}</span>`}</div>`;
+  return `<article class="expo-card ${tone}"><div class="expo-head"><div><div class="expo-code">${esc(tableZh)}</div><div class="expo-code-fr">${esc(tableFr)}</div><div class="expo-meta">${formatBilingualPeople(service.covers)} · ${clock(service.openedAt)}</div></div><div style="text-align:right"><span class="badge ${pending ? 'amber' : 'blue'}">${pending} 待出 / À servir</span><div class="minor" style="margin-top:6px">${served} 已上桌 / Servi</div></div></div><div class="expo-content">${rows.length ? rows.map(renderRow).join('') : '<div class="empty">尚未下单 / Aucune commande</div>'}</div><div class="expo-foot">${pending ? `<button class="btn primary big" data-action="serve-all" data-id="${service.id}">✓ 一键上桌 ${formatBilingualPortions(pending)}</button>` : ''}<button class="btn ${pending ? '' : 'primary'} big" data-action="complete" data-id="${service.id}" ${pending || !rows.length ? 'disabled' : ''}>✓ 完单 / Terminer</button>${pending ? `<div class="hint">${pending} 份未上桌，逐份点击或一键上桌；全部上齐后点完单释放桌位。<br>${pending} ${pending === 1 ? 'portion' : 'portions'} à servir avant de terminer.</div>` : ''}</div></article>`;
 }
 
 function renderExpo() {
@@ -457,8 +598,8 @@ function renderSettings() {
 
 function openStart(tableId = null) {
   const kind = tableId ? 'dine-in' : 'takeaway';
-  const label = tableId ? `桌号 ${tableId}` : '新建打包单';
-  showModal(label, tableId ? '请输入本桌人数后开台。' : '打包单有独立编号，不占桌位。', `<form data-form="start-service"><input type="hidden" name="kind" value="${kind}"><input type="hidden" name="tableId" value="${esc(tableId || '')}"><div class="field"><label>人数 / Couverts</label><input class="field-input" type="number" name="covers" min="1" max="30" value="${tableId ? 0 : 1}" required></div>${modalActions(tableId ? '开台点单' : '创建打包单')}</form>`);
+  const label = tableId ? `${t('桌号')} ${tableId}` : t('新建打包单');
+  showModal(label, tableId ? t('请输入本桌人数后开台。') : t('打包单有独立编号，不占桌位。'), `<form data-form="start-service"><input type="hidden" name="kind" value="${kind}"><input type="hidden" name="tableId" value="${esc(tableId || '')}"><div class="field"><label>${t('人数')}</label><input class="field-input" type="number" name="covers" min="1" max="30" value="${tableId ? 0 : 1}" required></div>${modalActions(tableId ? t('开台点单') : t('创建打包单'))}</form>`);
 }
 
 function reviewOrder() {
@@ -466,7 +607,7 @@ function reviewOrder() {
   const service = activeService();
   if (!service || service.status !== 'open') return;
   const total = basket.reduce((sum, line) => sum + (menuItem(line.menuId)?.priceCents || 0) * line.qty, 0);
-  showModal('确认下单', `${service.displayCode} · ${service.covers} 人`, `<div class="receipt"><h2>Le Weilai</h2>${basket.map(line => { const item = menuItem(line.menuId); const note = [...(line.tags || []), line.note].filter(Boolean).join('；'); return `<div class="receipt-line"><span>${esc(item.nameZh)} ×${line.qty}</span><b>${euro(item.priceCents * line.qty)}</b></div>${note ? `<div class="receipt-note">${esc(note)}</div>` : ''}`; }).join('')}<div class="receipt-rule"></div><div class="receipt-line"><b>合计</b><b>${euro(total)}</b></div></div><p class="hint">发送后菜品将实时显示在后厨和出菜口。</p><div class="modal-actions"><button class="btn" data-action="close-modal">继续选菜</button><button class="btn primary" data-action="confirm-order">确认并发送</button></div>`);
+  showModal(t('确认下单'), `${service.displayCode} · ${formatPeople(service.covers)}`, `<div class="receipt"><h2>Le Weilai</h2>${basket.map(line => { const item = menuItem(line.menuId); const note = displayNote([...(line.tags || []), line.note].filter(Boolean).join('；'), false); return `<div class="receipt-line"><span>${esc(displayName(item))} ×${line.qty}</span><b>${euro(item.priceCents * line.qty)}</b></div>${note ? `<div class="receipt-note">${esc(note)}</div>` : ''}`; }).join('')}<div class="receipt-rule"></div><div class="receipt-line"><b>${t('合计')}</b><b>${euro(total)}</b></div></div><p class="hint">${t('发送后菜品将实时显示在后厨和出菜口。')}</p><div class="modal-actions"><button class="btn" data-action="close-modal">${t('继续选菜')}</button><button class="btn primary" data-action="confirm-order">${t('确认并发送')}</button></div>`);
 }
 
 function showReceipt(service, order = null) {
@@ -476,25 +617,28 @@ function showReceipt(service, order = null) {
   const total = order.items.reduce((sum, item) => sum + item.priceCents * item.qty, 0);
   const printMessage = order.printStatus === 'printed' ? 'Epson 已确认接收小票'
     : order.printStatus === 'failed' ? `Epson 打印失败：${order.printError || '请检查打印机'}`
-    : '未配置 Epson 打印机，请使用浏览器打印。';
-  const body = `<div class="receipt"><h2>Le Weilai</h2><div style="text-align:center">${esc(service.displayCode)} · ${service.covers} 人<br>${dateTime(order.createdAt)}</div><div class="receipt-rule"></div>${order.items.map(item => `<div class="receipt-line"><span>${esc(item.nameZh)} ×${item.qty}</span><b>${euro(item.priceCents * item.qty)}</b></div><div class="receipt-note">${esc(item.nameFr)}${item.note ? ` · ${esc(item.note)}` : ''}</div>`).join('')}<div class="receipt-rule"></div><div class="receipt-line"><b>合计 / Total</b><b>${euro(total)}</b></div><div style="text-align:center;margin-top:10px">仅供录单 / Bon de commande</div></div>`;
+    : '未配置 Epson 打印机，可使用浏览器打印。';
+  const body = `<div class="receipt"><h2>Le Weilai</h2><div style="text-align:center">${esc(service.displayCode)} · ${formatPeople(service.covers)}<br>${dateTime(order.createdAt)}</div><div class="receipt-rule"></div>${order.items.map(item => `<div class="receipt-line"><span>${esc(displayName(item))} ×${item.qty}</span><b>${euro(item.priceCents * item.qty)}</b></div><div class="receipt-note">${esc(lang === 'fr' ? item.nameZh : item.nameFr)}${item.note ? ` · ${esc(displayNote(item.note, false))}` : ''}</div>`).join('')}<div class="receipt-rule"></div><div class="receipt-line"><b>${lang === 'fr' ? 'Total' : '合计 / Total'}</b><b>${euro(total)}</b></div><div style="text-align:center;margin-top:10px">${lang === 'fr' ? 'Bon de commande' : '仅供录单 / Bon de commande'}</div></div>`;
   printRoot.innerHTML = body;
-  showModal('小票预览', `${service.displayCode} · ${clock(order.createdAt)}`, `${body}<p class="hint" style="color:${order.printStatus === 'failed' ? 'var(--red)' : 'var(--muted)'}">${esc(printMessage)}</p><div class="modal-actions"><button class="btn" data-action="close-modal">关闭</button>${state.printer?.configured ? `<button class="btn" data-action="epson-reprint" data-id="${order.id}">Epson 重打</button>` : ''}<button class="btn primary" data-action="print">浏览器打印</button></div>`);
+  showModal(t('小票预览'), `${service.displayCode} · ${clock(order.createdAt)}`, `${body}<p class="hint" style="color:${order.printStatus === 'failed' ? 'var(--red)' : 'var(--muted)'}">${esc(displayMessage(printMessage))}</p><div class="modal-actions"><button class="btn" data-action="close-modal">${t('关闭')}</button>${state.printer?.configured ? `<button class="btn" data-action="epson-reprint" data-id="${order.id}">${t('Epson 重打')}</button>` : ''}<button class="btn primary" data-action="print">${t('浏览器打印')}</button></div>`);
 }
 
 function openCancel(itemId) {
   const item = allItems(activeService()).find(row => row.id === itemId);
   if (!item || !item.pendingQty) return;
-  showModal('退菜', `${item.nameZh} · 最多 ${item.pendingQty} 份`, `<form data-form="cancel-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>退菜份数</label><input class="field-input" name="qty" type="number" min="1" max="${item.pendingQty}" value="${item.pendingQty}" required></div><p class="hint">后厨会立即语音提示并闪烁显示，10 秒后自动退菜。已上桌的份数不能退。</p>${modalActions('确认退菜并通知后厨')}</form>`);
+  const maxLabel = lang === 'fr' ? `${t('最多')} ${formatPortions(item.pendingQty)}` : `最多 ${formatPortions(item.pendingQty)}`;
+  showModal(t('退菜'), `${displayName(item)} · ${maxLabel}`, `<form data-form="cancel-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>${t('退菜份数')}</label><input class="field-input" name="qty" type="number" min="1" max="${item.pendingQty}" value="${item.pendingQty}" required></div><p class="hint">${t('后厨会立即语音提示并闪烁显示，10 秒后自动退菜。已上桌的份数不能退。')}</p>${modalActions(t('确认退菜并通知后厨'))}</form>`);
 }
 
 function openChange(itemId) {
   const service = activeService();
   const item = serviceRows(service).find(row => row.id === itemId);
   if (!item || !item.pendingQty || (service.pendingChanges || []).some(change => change.itemId === itemId)) return;
-  const options = state.menu.filter(menu => menu.active).map(menu => `<option value="${menu.id}" ${menu.id === item.menuId ? 'selected' : ''}>${esc(menu.nameZh)} · ${esc(menu.code)}</option>`).join('');
-  showModal('改菜', `${service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`} · 当前 ${item.nameZh} ×${item.pendingQty}`,
-    `<form data-form="change-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>改为菜品</label><select class="field-input" name="menuId" required>${options}</select></div><div class="field"><label>改后待出份数</label><input class="field-input" name="qty" type="number" min="1" max="30" value="${item.pendingQty}" required></div><div class="field"><label>新菜备注</label><input class="field-input" name="note" maxlength="300" value="${esc(item.note || '')}"></div><p class="hint">后厨会立即语音提示并闪烁显示，10 秒后自动改菜。</p>${modalActions('确认改菜并通知后厨')}</form>`);
+  const options = state.menu.filter(menu => menu.active).map(menu => `<option value="${menu.id}" ${menu.id === item.menuId ? 'selected' : ''}>${esc(lang === 'fr' ? menu.nameFr : menu.nameZh)} · ${esc(menu.code)}</option>`).join('');
+  const serviceLabel = service.kind === 'takeaway' ? `${serviceType(service)} ${service.displayCode}` : `${t('桌号')} ${service.displayCode}`;
+  const itemLabel = lang === 'fr' ? `Plat actuel : ${displayName(item)}` : `当前 ${displayName(item)}`;
+  showModal(t('改菜'), `${serviceLabel} · ${itemLabel} ×${item.pendingQty}`,
+    `<form data-form="change-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>${t('改为菜品')}</label><select class="field-input" name="menuId" required>${options}</select></div><div class="field"><label>${t('改后待出份数')}</label><input class="field-input" name="qty" type="number" min="1" max="30" value="${item.pendingQty}" required></div><div class="field"><label>${t('新菜备注')}</label><input class="field-input" name="note" maxlength="300" value="${esc(displayNote(item.note || '', false))}"></div><p class="hint">${t('后厨会立即语音提示并闪烁显示，10 秒后自动改菜。')}</p>${modalActions(t('确认改菜并通知后厨'))}</form>`);
 }
 
 function openMoveService() {
@@ -502,11 +646,11 @@ function openMoveService() {
   if (!service || service.kind !== 'dine-in' || service.status !== 'open') return;
   const options = state.tables.filter(table => table.id !== service.tableId).map(table => {
     const occupied = serviceForTable(table.id);
-    const desc = occupied ? `${occupied.displayCode}（合并到此桌）` : `${table.id}（转到空桌）`;
+    const desc = occupied ? `${occupied.displayCode} — ${t('合并到此桌')}` : `${table.id} — ${t('转到空桌')}`;
     return `<option value="${esc(table.id)}">${esc(desc)}</option>`;
   }).join('');
-  if (!options) { toast('没有可选的目标桌', true); return; }
-  showModal('转桌 / 并台', `当前桌号：${service.displayCode}`, `<form data-form="move-service"><div class="field"><label>目标桌</label><select class="field-input" name="targetTableId" required>${options}</select></div><p class="hint">空桌会转移本桌服务单；已有服务单的桌会合并两桌菜品和人数。</p>${modalActions('确认转桌或并台')}</form>`);
+  if (!options) { toast(t('没有可选的目标桌'), true); return; }
+  showModal(t('转桌 / 并台'), `${t('当前桌号：')}${service.displayCode}`, `<form data-form="move-service"><div class="field"><label>${t('目标桌')}</label><select class="field-input" name="targetTableId" required>${options}</select></div><p class="hint">${t('空桌会转移本桌服务单；已有服务单的桌会合并两桌菜品和人数。')}</p>${modalActions(t('确认转桌或并台'))}</form>`);
 }
 
 function openEmployeeEditor(employeeId = null) {
@@ -597,7 +741,7 @@ document.addEventListener('click', async event => {
   if (action === 'move-service') { openMoveService(); return; }
   if (action === 'rush') { if (await mutate(`/api/services/${activeId}/rush`)) toast('已通知后厨催菜'); return; }
   if (action === 'discard') {
-    if (!confirm('取消这个尚未下单的服务单？')) return;
+    if (!confirm(uiText('取消这个尚未下单的服务单？', 'Annuler cette commande sans plats ?'))) return;
     if (await mutate(`/api/services/${activeId}/discard`)) { activeId = null; clearBasket(); navigate('tables'); }
     return;
   }
@@ -742,7 +886,7 @@ async function boot() {
     auth = await api('/api/session');
     if (auth.authorized) { await loadState(); connectEvents(); }
     else render();
-  } catch { app.innerHTML = '<div class="loading">无法连接餐厅服务。请确认本地服务器正在运行。</div>'; }
+  } catch { app.innerHTML = `<div class="loading">${t('无法连接餐厅服务。请确认本地服务器正在运行。')}</div>`; }
 }
 
 setInterval(() => { if (auth?.authorized && document.visibilityState === 'visible') loadState(); }, 15000);
