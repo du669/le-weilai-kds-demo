@@ -2,7 +2,6 @@ const app = document.getElementById('app');
 const modalRoot = document.getElementById('modal-root');
 const toastRoot = document.getElementById('toast-root');
 const printRoot = document.getElementById('print-root');
-const parisClockRoot = document.getElementById('paris-clock-root');
 
 let state = null;
 let auth = null;
@@ -20,6 +19,7 @@ let sortMode = 'time';
 let undo = null;
 let lastReceipt = null;
 let kitchenWakeLock = null;
+const announcedChangeIds = new Set();
 
 const words = {
   '点单': 'Commande', '后厨': 'Cuisine', '出菜口': 'Passe', '后台': 'Gestion',
@@ -76,72 +76,6 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 const euro = cents => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format((Number(cents) || 0) / 100);
 const clock = value => value ? new Date(value).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—';
 const dateTime = value => value ? new Date(value).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
-const parisTimeFormatter = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
-const parisClockWidget = () => `<div id="paris-clock" class="paris-clock" role="group" tabindex="0" aria-label="巴黎当前时间，可拖动移动" title="拖动调整时钟位置"><span class="paris-clock-grip" aria-hidden="true"><i></i><i></i><i></i></span><span class="paris-clock-indicator" aria-hidden="true"></span><span class="paris-clock-label"><b>PARIS</b><small>FRANCE</small></span><time class="paris-clock-time" data-paris-time>${parisTimeFormatter.format(new Date())}</time></div>`;
-
-parisClockRoot.innerHTML = parisClockWidget();
-const parisClockElement = parisClockRoot.querySelector('.paris-clock');
-const parisClockPositionKey = 'lw-paris-clock-position';
-let parisClockDrag = null;
-
-function placeParisClock(left, top, persist = false) {
-  const margin = 8;
-  const maxLeft = Math.max(margin, window.innerWidth - parisClockRoot.offsetWidth - margin);
-  const maxTop = Math.max(margin, window.innerHeight - parisClockRoot.offsetHeight - margin);
-  const position = {
-    left: Math.min(maxLeft, Math.max(margin, left)),
-    top: Math.min(maxTop, Math.max(margin, top))
-  };
-  parisClockRoot.style.left = `${position.left}px`;
-  parisClockRoot.style.top = `${position.top}px`;
-  parisClockRoot.style.right = 'auto';
-  if (persist) {
-    try { localStorage.setItem(parisClockPositionKey, JSON.stringify(position)); } catch {}
-  }
-}
-
-try {
-  const savedPosition = JSON.parse(localStorage.getItem(parisClockPositionKey));
-  if (Number.isFinite(savedPosition?.left) && Number.isFinite(savedPosition?.top)) {
-    placeParisClock(savedPosition.left, savedPosition.top);
-  }
-} catch {}
-
-parisClockElement.addEventListener('pointerdown', event => {
-  if (event.pointerType === 'mouse' && event.button !== 0) return;
-  const rect = parisClockRoot.getBoundingClientRect();
-  parisClockDrag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
-  parisClockElement.classList.add('dragging');
-  parisClockElement.setPointerCapture(event.pointerId);
-  event.preventDefault();
-});
-parisClockElement.addEventListener('pointermove', event => {
-  if (!parisClockDrag || parisClockDrag.pointerId !== event.pointerId) return;
-  placeParisClock(event.clientX - parisClockDrag.offsetX, event.clientY - parisClockDrag.offsetY);
-});
-function finishParisClockDrag(event) {
-  if (!parisClockDrag || (event && parisClockDrag.pointerId !== event.pointerId)) return;
-  parisClockDrag = null;
-  parisClockElement.classList.remove('dragging');
-  const rect = parisClockRoot.getBoundingClientRect();
-  placeParisClock(rect.left, rect.top, true);
-}
-parisClockElement.addEventListener('pointerup', finishParisClockDrag);
-parisClockElement.addEventListener('pointercancel', finishParisClockDrag);
-parisClockElement.addEventListener('keydown', event => {
-  const step = event.shiftKey ? 24 : 8;
-  const movement = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
-  if (!movement) return;
-  event.preventDefault();
-  const rect = parisClockRoot.getBoundingClientRect();
-  placeParisClock(rect.left + movement[0], rect.top + movement[1], true);
-});
-window.addEventListener('resize', () => {
-  if (parisClockRoot.style.left) {
-    const rect = parisClockRoot.getBoundingClientRect();
-    placeParisClock(rect.left, rect.top, true);
-  }
-});
 const minutes = value => Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 60000));
 const allItems = service => service.orders.flatMap(order => order.items);
 const pendingItems = service => allItems(service).filter(item => item.pendingQty > 0);
@@ -175,7 +109,7 @@ async function mutate(path, body = {}, method = 'POST') {
     await loadState();
     return result;
   } catch (error) {
-    if (error.status === 401) { auth = { pinRequired: true, authorized: false }; render(); }
+    if (error.status === 401) { stream?.close(); stream = null; auth = { pinRequired: true, authorized: false }; render(); }
     if (!error.status) { connected = false; syncIndicator(); }
     toast(error.status ? error.message : '服务器连接中断，订单未确认。请保持当前页面并重试。', true);
     return null;
@@ -186,13 +120,18 @@ async function loadState() {
   try {
     const next = await api('/api/state');
     const unchanged = state?.revision === next.revision;
+    const authorizationChanged = auth?.authorized && auth.adminUnlocked !== !!next.isAdmin;
     if (!unchanged && state) alertForChanges(state, next);
     state = next;
+    if (auth?.authorized) {
+      auth.adminUnlocked = !!next.isAdmin;
+      auth.actor = next.actor || auth.actor;
+    }
     connected = true;
-    if (unchanged) syncIndicator(); else render();
+    if (unchanged && !authorizationChanged) syncIndicator(); else render();
   } catch (error) {
     connected = false;
-    if (error.status === 401) auth = { pinRequired: true, authorized: false };
+    if (error.status === 401) { stream?.close(); stream = null; auth = { pinRequired: true, authorized: false }; }
     render();
   }
 }
@@ -211,14 +150,33 @@ function beep(frequency = 760, duration = .15, gainValue = .04) {
   } catch { /* The device may block audio before user interaction. */ }
 }
 
+function pendingChangeEntries(services = state?.services || []) {
+  return services.flatMap(service => (service.pendingChanges || []).map(change => ({ service, change })));
+}
+
+function announcePendingChanges(services = state?.services || []) {
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
+  for (const { service, change } of pendingChangeEntries(services)) {
+    if (announcedChangeIds.has(change.id)) continue;
+    announcedChangeIds.add(change.id);
+    const table = service.kind === 'takeaway' ? service.displayCode : `桌号 ${service.displayCode}`;
+    const action = change.kind === 'cancel' ? '退菜' : `改菜${change.newName ? `，改为${change.newName}` : ''}`;
+    const speech = new SpeechSynthesisUtterance(`${table}，${change.oldName}，${action}`);
+    speech.lang = 'zh-CN';
+    const voice = speechSynthesis.getVoices().find(candidate => candidate.lang?.toLowerCase().startsWith('zh'));
+    if (voice) speech.voice = voice;
+    speechSynthesis.speak(speech);
+  }
+}
+
 function alertForChanges(previous, next) {
   if (!['kitchen', 'expo'].includes(view)) return;
   const oldItems = new Map(previous.services.flatMap(service => allItems(service).map(item => [item.id, item])));
   const incoming = next.services.flatMap(service => allItems(service))
     .filter(item => item.pendingQty > 0 && (view === 'expo' || item.type === 'dish') && !oldItems.has(item.id));
-  const cancellations = next.services.flatMap(service => allItems(service))
-    .filter(item => item.cancelledAt && item.cancelledAt !== oldItems.get(item.id)?.cancelledAt);
-  if (cancellations.length) { beep(410, .23, .08); setTimeout(() => beep(330, .28, .08), 270); }
+  const oldRequests = new Set(pendingChangeEntries(previous.services).map(({ change }) => change.id));
+  const changes = pendingChangeEntries(next.services).filter(({ change }) => !oldRequests.has(change.id));
+  if (changes.length) { beep(410, .23, .08); setTimeout(() => beep(330, .28, .08), 270); }
   else if (incoming.length) { beep(760, .14); setTimeout(() => beep(960, .14), 180); }
 }
 
@@ -256,8 +214,11 @@ function closeModal() { modalRoot.innerHTML = ''; }
 const modalActions = (confirmLabel, cancelLabel = '取消') => `<div class="modal-actions"><button class="btn" type="button" data-action="close-modal">${cancelLabel}</button><button class="btn primary" type="submit">${confirmLabel}</button></div>`;
 
 function render() {
-  if (document.fullscreenElement?.id === 'kitchen-screen' && state && view === 'kitchen') {
-    document.querySelector('#kitchen-screen .kitchen-list').innerHTML = renderKitchenCards();
+  if (document.fullscreenElement?.id === 'kitchen-screen' && auth?.authorized && state && view === 'kitchen') {
+    const screen = document.getElementById('kitchen-screen');
+    screen.querySelector('.kitchen-list').innerHTML = renderKitchenCards();
+    screen.querySelector('.kitchen-aggregate').innerHTML = renderKitchenSummary();
+    screen.querySelector('.kitchen-alerts').innerHTML = renderKitchenAlerts();
     return;
   }
   if (!auth) { app.innerHTML = '<div class="loading">正在连接餐厅服务…</div>'; return; }
@@ -270,9 +231,8 @@ function render() {
     : t(label);
   const connectionText = view === 'expo' ? (connected ? '服务器已连接 / Connecté' : '连接中断 / Déconnecté') : (connected ? '服务器已连接' : '连接中断');
   const brandCaption = view === 'kitchen' ? '后厨看单' : view === 'expo' ? '餐厅服务 / Service' : 'SERVICE SYSTEM';
-  app.innerHTML = `<div class="app-shell"><div id="connection-banner" class="connection-banner ${connected ? '' : 'visible'}">${view === 'kitchen' ? '与服务器断开连接，请检查网络。' : '与服务器断开连接。订单未确认发送时，请保持当前页面并重试。 / Connexion interrompue.'}</div><header class="topbar"><div class="brand"><div class="brand-mark">LW</div><div><b>Le Weilai</b><small>${brandCaption}</small></div></div><nav class="nav" aria-label="主导航">${tabs.map(([key, label]) => `<button class="${view === key || (view === 'order' && key === 'tables') ? 'active' : ''}" data-action="nav" data-view="${key}">${navText(key, label)}</button>`).join('')}</nav><div class="top-actions"><div id="sync-indicator" class="sync-state ${connected ? '' : 'offline'}"><i></i><span>${connectionText}</span></div>${['tables', 'order', 'admin'].includes(view) ? `<button class="btn small" data-action="language">${lang === 'zh' ? '中文 / FR' : 'FR / 中文'}</button>` : ''}${auth.pinRequired ? `<button class="btn small ghost" data-action="logout">${view === 'expo' ? '退出 / Quitter' : '退出'}</button>` : ''}</div></header><main class="container">${view === 'tables' ? renderTables() : view === 'order' ? renderOrder() : view === 'kitchen' ? renderKitchen() : view === 'expo' ? renderExpo() : renderAdmin()}</main></div>`;
+  app.innerHTML = `<div class="app-shell"><div id="connection-banner" class="connection-banner ${connected ? '' : 'visible'}">${view === 'kitchen' ? '与服务器断开连接，请检查网络。' : '与服务器断开连接。订单未确认发送时，请保持当前页面并重试。 / Connexion interrompue.'}</div><header class="topbar"><div class="brand"><div class="brand-mark">LW</div><div><b>Le Weilai</b><small>${brandCaption}</small></div></div><nav class="nav" aria-label="主导航">${tabs.map(([key, label]) => `<button class="${view === key || (view === 'order' && key === 'tables') ? 'active' : ''}" data-action="nav" data-view="${key}">${navText(key, label)}</button>`).join('')}</nav><div class="top-actions"><div id="sync-indicator" class="sync-state ${connected ? '' : 'offline'}"><i></i><span>${connectionText}</span></div>${auth.actor ? `<span class="actor-name">${esc(auth.actor)}</span>` : ''}${['tables', 'order', 'admin'].includes(view) ? `<button class="btn small" data-action="language">${lang === 'zh' ? '中文 / FR' : 'FR / 中文'}</button>` : ''}${auth.pinRequired ? `<button class="btn small ghost" data-action="logout">${view === 'expo' ? '退出 / Quitter' : '退出'}</button>` : ''}</div></header><main class="container">${view === 'tables' ? renderTables() : view === 'order' ? renderOrder() : view === 'kitchen' ? renderKitchen() : view === 'expo' ? renderExpo() : auth.adminUnlocked ? renderAdmin() : renderAdminGate()}</main></div>`;
   window.scrollTo(0, y);
-  updateClocks();
 }
 
 function renderLogin() {
@@ -309,7 +269,9 @@ function renderTables() {
 function orderLine(item, service) {
   const pending = item.pendingQty;
   const status = pending ? `<span class="badge amber">${t('待上桌')} ${pending}</span>` : item.servedQty ? `<span class="badge green">${t('已上桌')} ${item.servedQty}</span>` : `<span class="badge red">${t('已退菜')}</span>`;
-  return `<div class="ordered-line"><div><div class="line-main">${esc(displayName(item))} × ${item.qty} ${status}</div><div class="line-sub">${esc(item.note || '')}${item.cancelledQty ? ` · ${t('已退菜')} ${item.cancelledQty}` : ''} · ${clock(item.createdAt)}</div></div>${pending && service.status === 'open' ? `<button class="btn small danger" data-action="cancel-item" data-id="${item.id}">${t('退菜')}</button>` : ''}</div>`;
+  const changePending = (service.pendingChanges || []).some(change => change.itemId === item.id);
+  const actions = pending && service.status === 'open' ? `<div class="row-actions"><button class="btn small" data-action="change-item" data-id="${item.id}" ${changePending ? 'disabled' : ''}>改菜</button><button class="btn small danger" data-action="cancel-item" data-id="${item.id}" ${changePending ? 'disabled' : ''}>${t('退菜')}</button></div>` : '';
+  return `<div class="ordered-line"><div><div class="line-main">${esc(displayName(item))} × ${item.qty} ${status}</div><div class="line-sub">${esc(item.note || '')}${item.cancelledQty ? ` · ${t('已退菜')} ${item.cancelledQty}` : ''} · ${clock(item.createdAt)}${changePending ? ' · 后厨处理中' : ''}</div></div>${actions}</div>`;
 }
 
 function renderOrder() {
@@ -322,7 +284,7 @@ function renderOrder() {
   const total = basket.reduce((sum, line) => sum + (menuItem(line.menuId)?.priceCents || 0) * line.qty, 0);
   const ordered = rows.length ? `<div class="order-items">${rows.map(item => orderLine(item, service)).join('')}</div>` : `<div class="empty">${t('暂无菜品')}</div>`;
   const headline = `<div class="service-headline"><strong>${esc(serviceKind(service))}</strong><span class="badge ${isOpen ? 'amber' : 'green'}">${isOpen ? t('正在点单') : t('已完单')}</span><small>${service.covers} ${t('人')} · ${clock(service.openedAt)}</small></div>`;
-  const statusPanel = `<section class="panel order-status">${headline}<div class="panel-head" style="margin:16px 0 0"><h2>${t('本桌全部点单')}</h2><div class="row-actions">${pending.length && isOpen ? `<button class="btn small warn" data-action="rush">${t('催菜')}</button>` : ''}${!rows.length && isOpen ? `<button class="btn small danger" data-action="discard">${t('取消开单')}</button>` : ''}${rows.length ? `<button class="btn small" data-action="receipt-latest">${t('小票')}</button>` : ''}${state.printer?.configured && latestOrder ? `<button class="btn small" data-action="epson-reprint" data-id="${latestOrder.id}">Epson 重打</button>` : ''}</div></div>${ordered}${service.status === 'complete' ? '<p class="hint">服务单已结束，桌位已自动释放。</p>' : ''}</section>`;
+  const statusPanel = `<section class="panel order-status">${headline}<div class="panel-head" style="margin:16px 0 0"><h2>${t('本桌全部点单')}</h2><div class="row-actions">${pending.length && isOpen ? `<button class="btn small warn" data-action="rush">${t('催菜')}</button>` : ''}${service.kind === 'dine-in' && isOpen ? '<button class="btn small" data-action="move-service">转桌 / 并台</button>' : ''}${!rows.length && isOpen ? `<button class="btn small danger" data-action="discard">${t('取消开单')}</button>` : ''}${rows.length ? `<button class="btn small" data-action="receipt-latest">${t('小票')}</button>` : ''}${state.printer?.configured && latestOrder ? `<button class="btn small" data-action="epson-reprint" data-id="${latestOrder.id}">Epson 重打</button>` : ''}</div></div>${ordered}${service.status === 'complete' ? '<p class="hint">服务单已结束，桌位已自动释放。</p>' : ''}</section>`;
   const actions = `<button class="btn" data-action="nav" data-view="tables">← ${t('返回桌位')}</button>`;
   if (!isOpen) return `${pageHead(t('桌位点单'), '', actions)}${statusPanel}`;
   const categories = ['全部', ...new Set(state.menu.filter(m => m.active).map(m => m.category))];
@@ -347,7 +309,7 @@ function renderMenu() {
 
 function kitchenServices() {
   const services = state.services.filter(service => {
-    return allItems(service).some(item => item.type === 'dish' && (item.pendingQty > 0 || item.servedQty > 0 || item.cancelledQty > 0));
+    return allItems(service).some(item => item.type === 'dish' && item.pendingQty > 0);
   });
   return services.sort((a, b) => sortMode === 'table'
     ? a.displayCode.localeCompare(b.displayCode, undefined, { numeric: true })
@@ -358,30 +320,20 @@ function renderKitchenCards() {
   const services = kitchenServices();
   if (!services.length) return '<div class="empty" style="grid-column:1/-1;padding:65px 20px"><strong>暂无待做菜品</strong><br>新订单会自动出现在这里</div>';
   return services.map(service => {
-    const items = allItems(service).filter(item => item.type === 'dish');
-    const pending = items.filter(item => item.pendingQty > 0);
-    const oldestPending = pending.length ? Math.max(...pending.map(item => minutes(item.createdAt))) : null;
-    const tone = oldestPending === null ? '' : oldestPending >= state.settings.lateMinutes ? 'late' : oldestPending >= state.settings.warnMinutes ? 'overdue' : '';
+    const items = allItems(service).filter(item => item.type === 'dish' && item.pendingQty > 0);
+    const oldestPending = Math.max(...items.map(item => minutes(item.createdAt)));
+    const tone = oldestPending >= state.settings.lateMinutes ? 'late' : oldestPending >= state.settings.warnMinutes ? 'overdue' : '';
+    const rushed = items.some(item => item.rush);
     const heading = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
-    const gap = service.lastServedAt ? minutes(service.lastServedAt) : null;
-    const lines = items.flatMap(item => {
-      const itemLines = [];
-      if (item.pendingQty > 0) {
-        const allergy = item.allergens && /过敏|allerg/i.test(item.note);
-        const age = minutes(item.createdAt);
-        const ageBadge = age >= state.settings.lateMinutes ? 'red' : age >= state.settings.warnMinutes ? 'amber' : '';
-        itemLines.push(`<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span>×${item.pendingQty}</span></div><div class="kitchen-line-meta">${item.added ? '<span class="badge green">加菜</span>' : ''}${item.rush ? '<span class="badge red">催菜</span>' : ''}${allergy ? '<span class="badge red">⚠ 过敏提醒</span>' : ''}<span class="badge ${ageBadge}" data-minutes="${esc(item.createdAt)}">${age} 分钟</span></div>${item.note ? `<div class="kitchen-note">${allergy ? '⚠ ' : ''}${esc(item.note)}</div>` : ''}</div>`);
-      }
-      if (item.servedQty > 0) itemLines.push(`<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span class="kitchen-dish-status">×${item.servedQty}<span class="badge green">已上桌</span></span></div></div>`);
-      if (item.cancelledQty > 0) itemLines.push(`<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span class="kitchen-dish-status">×${item.cancelledQty}<span class="badge red">退</span></span></div></div>`);
-      return itemLines;
+    const lines = items.map(item => {
+      const allergy = item.allergens && /过敏|allerg/i.test(item.note);
+      return `<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span>×${item.pendingQty}</span></div><div class="kitchen-line-meta">${item.added ? '<span class="badge green">加菜</span>' : ''}${item.rush ? '<span class="badge red">催菜</span>' : ''}${allergy ? '<span class="badge red">⚠ 过敏提醒</span>' : ''}</div>${item.note ? `<div class="kitchen-note">${allergy ? '⚠ ' : ''}${esc(item.note)}</div>` : ''}</div>`;
     }).join('');
-    const cardState = oldestPending !== null ? `<b>${oldestPending} 分钟</b>` : items.some(item => item.servedQty > 0) ? '<b>已上齐</b>' : '<b>退菜记录</b>';
-    return `<article class="kitchen-card ${tone}"><div class="kitchen-card-head"><div><div class="kitchen-code">${esc(heading)}</div><span class="minor">${service.covers} 人 · 下单 ${clock(service.openedAt)}</span>${gap !== null && gap >= state.settings.gapMinutes && oldestPending !== null ? '<br><span class="badge amber">出菜断档</span>' : ''}</div><div class="kitchen-meta">${cardState}${gap !== null && oldestPending !== null ? `<br>上道出菜后 ${gap} 分钟` : ''}</div></div><div class="kitchen-lines">${lines}</div></article>`;
+    return `<article class="kitchen-card ${tone} ${rushed ? 'rush' : ''}"><div class="kitchen-card-head"><div><div class="kitchen-code">${esc(heading)}</div><span class="minor">${service.covers} 人 · 下单 ${clock(service.openedAt)}</span></div><div class="kitchen-meta">${rushed ? '<b class="badge red">催菜</b>' : ''}</div></div><div class="kitchen-lines">${lines}</div></article>`;
   }).join('');
 }
 
-function renderKitchen() {
+function kitchenTotals() {
   const totals = new Map();
   for (const service of state.services.filter(s => s.status === 'open')) {
     for (const item of allItems(service).filter(i => i.type === 'dish' && i.pendingQty > 0)) {
@@ -390,8 +342,32 @@ function renderKitchen() {
       totals.set(item.menuId, row);
     }
   }
-  const aggregate = [...totals.values()].sort((a, b) => b.qty - a.qty).map(row => `<div class="aggregate-row"><b><span>${esc(row.name)}</span><span>×${row.qty}</span></b><small>${esc(row.places.join(' · '))}</small></div>`).join('');
-  return `${pageHead('后厨看单', '出菜口标记后显示已上桌状态；退菜标记为退，完单后自动移除。', `<div class="kitchen-tools"><select class="field-input" data-change="sort"><option value="time" ${sortMode === 'time' ? 'selected' : ''}>按下单时间</option><option value="table" ${sortMode === 'table' ? 'selected' : ''}>按桌号</option></select><button class="btn primary" data-action="fullscreen">⛶ 全屏显示</button></div>`, '后厨')}<div class="kitchen-layout"><div id="kitchen-screen"><div class="kitchen-list">${renderKitchenCards()}</div></div><aside class="panel kitchen-aggregate sticky"><div class="panel-head"><h2>同菜汇总</h2><span class="badge green">${[...totals.values()].reduce((sum, row) => sum + row.qty, 0)} 份</span></div>${aggregate || '<div class="minor">暂无待做菜品</div>'}</aside></div>`;
+  return totals;
+}
+
+function renderKitchenSummary(totals = kitchenTotals()) {
+  const rows = [...totals.values()].sort((a, b) => b.qty - a.qty).map(row => `<div class="aggregate-row"><b><span>${esc(row.name)}</span><span>×${row.qty}</span></b><small>${esc(row.places.join(' · '))}</small></div>`).join('');
+  const portions = [...totals.values()].reduce((sum, row) => sum + row.qty, 0);
+  return `<div class="panel-head"><h2>同菜汇总</h2><span class="badge green">${portions} 份</span></div>${rows || '<div class="minor">暂无待做菜品</div>'}`;
+}
+
+function renderKitchenAlerts() {
+  const alerts = pendingChangeEntries();
+  if (!alerts.length) return '';
+  announcePendingChanges();
+  return alerts.map(({ service, change }) => {
+    const table = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
+    const label = change.kind === 'cancel' ? '退菜' : '改菜';
+    const dish = change.kind === 'change' && change.newName
+      ? `${change.oldName} → ${change.newName}` : change.oldName;
+    const qty = change.kind === 'cancel' ? change.qty : change.newQty;
+    return `<article class="kitchen-alert"><strong>⚠ ${label}</strong><div class="kitchen-alert-dish">${esc(table)} · ${esc(dish)} ×${qty}</div><small>10 秒后自动处理</small></article>`;
+  }).join('');
+}
+
+function renderKitchen() {
+  const totals = kitchenTotals();
+  return `${pageHead('后厨看单', '菜品上桌后自动移除；改菜和退菜会闪烁提示 10 秒。', `<div class="kitchen-tools"><select class="field-input" data-change="sort"><option value="time" ${sortMode === 'time' ? 'selected' : ''}>按下单时间</option><option value="table" ${sortMode === 'table' ? 'selected' : ''}>按桌号</option></select><button class="btn primary" data-action="fullscreen">⛶ 全屏显示</button></div>`, '后厨')}<div id="kitchen-screen" class="kitchen-layout"><div class="kitchen-board"><div class="kitchen-list">${renderKitchenCards()}</div></div><aside class="panel kitchen-aggregate sticky">${renderKitchenSummary(totals)}</aside><div class="kitchen-alerts" aria-live="assertive">${renderKitchenAlerts()}</div></div>`;
 }
 
 function expoServiceCard(service) {
@@ -402,21 +378,35 @@ function expoServiceCard(service) {
   const tone = age >= state.settings.lateMinutes ? 'late' : age >= state.settings.warnMinutes ? 'overdue' : '';
   const tableZh = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
   const tableFr = service.kind === 'takeaway' ? `À emporter ${service.displayCode.replace(/\D/g, '')}` : `Table ${service.displayCode}`;
-  const renderRow = item => `<div class="expo-line ${item.type === 'drink' ? 'drink' : ''}"><div><div class="expo-name">${esc(item.nameZh)} ×${item.qty}</div><div class="expo-fr">${esc(item.nameFr)}</div><div class="expo-qty">${item.type === 'drink' ? '饮品 / Boisson · ' : ''}已上桌 / Servi ${item.servedQty} · 待出 / À servir ${item.pendingQty}${item.cancelledQty ? ` · 退菜 / Annulé ${item.cancelledQty}` : ''}</div>${item.pendingQty ? `<div class="expo-qty" data-expo-minutes="${esc(item.createdAt)}">等待 / Attente ${minutes(item.createdAt)} min</div>` : ''}${item.note ? `<div class="expo-note">${esc(item.note)}</div>` : ''}${item.added ? '<span class="badge green">加菜 / Ajout</span>' : ''}${item.rush ? '<span class="badge red">催菜 / Urgent</span>' : ''}</div>${item.pendingQty && service.status === 'open' ? `<div class="row-actions"><button class="btn small primary" data-action="serve" data-id="${item.id}" data-qty="1">上桌 1 份<br>Servir 1</button>${item.pendingQty > 1 ? `<button class="btn small" data-action="serve" data-id="${item.id}" data-qty="${item.pendingQty}">全部<br>Tout</button>` : ''}</div>` : `<span class="badge ${item.servedQty ? 'green' : 'red'}">${item.servedQty ? '✓' : '退 / Annulé'}</span>`}</div>`;
-  return `<article class="expo-card ${tone}"><div class="expo-head"><div><div class="expo-code">${esc(tableZh)}</div><div class="expo-code-fr">${esc(tableFr)}</div><div class="expo-meta">${service.covers} 人 / couverts · ${clock(service.openedAt)}${service.lastServedAt ? ` · 上道出菜后 / Depuis dernier service ${minutes(service.lastServedAt)} min` : ''}</div></div><div style="text-align:right"><span class="badge ${pending ? 'amber' : 'blue'}">${pending} 待出 / À servir</span><div class="minor" style="margin-top:6px">${served} 已上桌 / Servi</div></div></div><div class="expo-content">${rows.length ? rows.map(renderRow).join('') : '<div class="empty">尚未下单 / Aucune commande</div>'}</div><div class="expo-foot"><button class="btn primary big" data-action="complete" data-id="${service.id}" ${pending || !rows.length ? 'disabled' : ''}>✓ 完单 / Terminer</button>${pending ? `<div class="hint">${pending} 份未上桌，全部上齐后可点完单。<br>${pending} portion(s) à servir avant de terminer.</div>` : ''}</div></article>`;
+  const renderRow = item => `<div class="expo-line ${item.type === 'drink' ? 'drink' : ''}"><div><div class="expo-name">${esc(item.nameZh)} ×${item.qty}</div><div class="expo-fr">${esc(item.nameFr)}</div><div class="expo-qty">${item.type === 'drink' ? '饮品 / Boisson · ' : ''}已上桌 / Servi ${item.servedQty} · 待出 / À servir ${item.pendingQty}${item.cancelledQty ? ` · 退菜 / Annulé ${item.cancelledQty}` : ''}</div>${item.note ? `<div class="expo-note">${esc(item.note)}</div>` : ''}${item.added ? '<span class="badge green">加菜 / Ajout</span>' : ''}${item.rush ? '<span class="badge red">催菜 / Urgent</span>' : ''}</div>${item.pendingQty && service.status === 'open' ? `<div class="row-actions"><button class="btn small primary" data-action="serve" data-id="${item.id}" data-qty="1">上桌 1 份<br>Servir 1</button>${item.pendingQty > 1 ? `<button class="btn small" data-action="serve" data-id="${item.id}" data-qty="${item.pendingQty}">全部<br>Tout</button>` : ''}</div>` : `<span class="badge ${item.servedQty ? 'green' : 'red'}">${item.servedQty ? '✓' : '退 / Annulé'}</span>`}</div>`;
+  return `<article class="expo-card ${tone}"><div class="expo-head"><div><div class="expo-code">${esc(tableZh)}</div><div class="expo-code-fr">${esc(tableFr)}</div><div class="expo-meta">${service.covers} 人 / couverts · ${clock(service.openedAt)}</div></div><div style="text-align:right"><span class="badge ${pending ? 'amber' : 'blue'}">${pending} 待出 / À servir</span><div class="minor" style="margin-top:6px">${served} 已上桌 / Servi</div></div></div><div class="expo-content">${rows.length ? rows.map(renderRow).join('') : '<div class="empty">尚未下单 / Aucune commande</div>'}</div><div class="expo-foot">${pending ? `<button class="btn primary big" data-action="serve-all" data-id="${service.id}">✓ 一键上桌 ${pending} 份 / Tout servir</button>` : ''}<button class="btn ${pending ? '' : 'primary'} big" data-action="complete" data-id="${service.id}" ${pending || !rows.length ? 'disabled' : ''}>✓ 完单 / Terminer</button>${pending ? `<div class="hint">${pending} 份未上桌，逐份点击或一键上桌；全部上齐后点完单释放桌位。<br>${pending} portion(s) à servir avant de terminer.</div>` : ''}</div></article>`;
 }
 
 function renderExpo() {
   const services = state.services.filter(s => s.orders.length).sort((a, b) => Date.parse(a.openedAt) - Date.parse(b.openedAt));
   const canUndo = undo && Date.now() - Date.parse(undo.at) < 10000;
   const actions = '<button class="btn" data-action="go-stock">沽清 / Rupture</button><button class="btn" data-action="go-overview">今日概览 / Aujourd’hui</button><button class="btn" data-action="nav" data-view="admin">后台 / Gestion</button>';
-  return `${pageHead('出菜口 / Passe', '逐份上桌 / Servir par portion · 全部上齐后点完单 / Terminer après le dernier plat', actions, 'LE WEILAI / PASS')}${canUndo ? `<div class="undo"><span>刚才划单可撤销 / Annuler le dernier service · <b id="undo-seconds">${Math.ceil((10000 - (Date.now() - Date.parse(undo.at))) / 1000)}</b>s</span><button class="btn small" data-action="undo">撤销 / Annuler</button></div>` : ''}${services.length ? `<div class="expo-grid">${services.map(expoServiceCard).join('')}</div>` : '<div class="empty">没有待出菜的服务单 / Aucune commande en cours</div>'}`;
+  return `${pageHead('出菜口 / Passe', '逐份上桌或一键上桌；全部上齐后点完单自动释放桌位。', actions, 'LE WEILAI / PASS')}${canUndo ? `<div class="undo"><span>刚才划单可撤销 / Annuler le dernier service</span><button class="btn small" data-action="undo">撤销 / Annuler</button></div>` : ''}${services.length ? `<div class="expo-grid">${services.map(expoServiceCard).join('')}</div>` : '<div class="empty">没有待出菜的服务单 / Aucune commande en cours</div>'}<div class="kitchen-alerts" aria-live="assertive">${renderKitchenAlerts()}</div>`;
+}
+
+function renderAdminGate() {
+  return `${pageHead('管理员验证', '进入后台管理前请输入管理员密码。')}
+    <section class="panel pad admin-gate"><form data-form="admin-unlock">
+      <div class="field"><label for="admin-pin">管理员密码</label><input class="field-input" id="admin-pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required autofocus></div>
+      <button class="btn primary" type="submit">验证并进入后台</button>
+    </form></section>`;
 }
 
 function renderAdmin() {
-  const tabs = [['overview', '营业概览'], ['menu', '菜单'], ['stock', '库存 / 沽清'], ['history', '历史服务单'], ['logs', '操作日志'], ['settings', '设置']];
-  const staffNote = auth.role !== 'admin' ? `<div class="undo">${lang === 'fr' ? 'Accès employé. Utilisez le PIN administrateur pour modifier le menu, le stock et les réglages.' : '当前为员工权限。修改菜单、库存和设置需要管理员 PIN。请退出后使用管理员 PIN 登录。'}</div>` : '';
-  return `${pageHead(t('后台管理'), t('菜单、库存、历史记录和系统提醒。'), '', 'LE WEILAI / MANAGEMENT')}${staffNote}<div class="admin-tabs">${tabs.map(([key, text]) => `<button class="${adminTab === key ? 'active' : ''}" data-action="admin-tab" data-tab="${key}">${t(text)}</button>`).join('')}</div>${adminTab === 'overview' ? renderOverview() : adminTab === 'menu' ? renderAdminMenu() : adminTab === 'stock' ? renderStock() : adminTab === 'history' ? renderHistory() : adminTab === 'logs' ? renderLogs() : renderSettings()}`;
+  const tabs = [['overview', '营业概览'], ['menu', '菜单'], ['stock', '库存 / 沽清'], ['employees', '员工管理'], ['history', '历史服务单'], ['logs', '操作日志'], ['settings', '设置']];
+  return `${pageHead(t('后台管理'), t('菜单、库存、员工、历史记录和操作日志。'), '', 'LE WEILAI / MANAGEMENT')}<div class="admin-tabs">${tabs.map(([key, text]) => `<button class="${adminTab === key ? 'active' : ''}" data-action="admin-tab" data-tab="${key}">${t(text)}</button>`).join('')}</div>${adminTab === 'overview' ? renderOverview() : adminTab === 'menu' ? renderAdminMenu() : adminTab === 'stock' ? renderStock() : adminTab === 'employees' ? renderEmployees() : adminTab === 'history' ? renderHistory() : adminTab === 'logs' ? renderLogs() : renderSettings()}`;
+}
+
+function renderEmployees() {
+  const employees = state.employees || [];
+  return `<div class="panel pad"><div class="panel-head"><div><h2>员工管理</h2><span class="minor">员工使用各自 PIN 登录，操作日志记录员工和时间。</span></div><button class="btn primary" data-action="new-employee">＋ 添加员工</button></div>
+    ${employees.length ? `<div class="manage-grid">${employees.map(employee => `<article class="manage-card employee-card"><div><b>${esc(employee.name)} <span class="badge ${employee.active ? 'green' : 'red'}">${employee.active ? '在职' : '已停用'}</span></b><small>员工代号：${esc(employee.code)} · 创建于 ${dateTime(employee.createdAt)}</small></div><div class="row-actions"><button class="btn small" data-action="edit-employee" data-id="${employee.id}">编辑</button><button class="btn small ${employee.active ? 'danger' : ''}" data-action="toggle-employee" data-id="${employee.id}" data-active="${employee.active ? '0' : '1'}">${employee.active ? '停用' : '启用'}</button></div></article>`).join('')}</div>` : '<div class="empty">还没有员工。添加后员工即可用个人 PIN 登录。</div>'}
+  </div>`;
 }
 
 function renderOverview() {
@@ -477,7 +467,34 @@ function showReceipt(service, order = null) {
 function openCancel(itemId) {
   const item = allItems(activeService()).find(row => row.id === itemId);
   if (!item || !item.pendingQty) return;
-  showModal('退菜', `${item.nameZh} · 最多 ${item.pendingQty} 份`, `<form data-form="cancel-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>退菜份数</label><input class="field-input" name="qty" type="number" min="1" max="${item.pendingQty}" value="${item.pendingQty}" required></div><p class="hint">后厨会保留退菜记录并标注“退”。已上桌的份数不能退；如需改单，请重新点单。</p>${modalActions('确认退菜并通知后厨')}</form>`);
+  showModal('退菜', `${item.nameZh} · 最多 ${item.pendingQty} 份`, `<form data-form="cancel-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>退菜份数</label><input class="field-input" name="qty" type="number" min="1" max="${item.pendingQty}" value="${item.pendingQty}" required></div><p class="hint">后厨会立即语音提示并闪烁显示，10 秒后自动退菜。已上桌的份数不能退。</p>${modalActions('确认退菜并通知后厨')}</form>`);
+}
+
+function openChange(itemId) {
+  const service = activeService();
+  const item = serviceRows(service).find(row => row.id === itemId);
+  if (!item || !item.pendingQty || (service.pendingChanges || []).some(change => change.itemId === itemId)) return;
+  const options = state.menu.filter(menu => menu.active).map(menu => `<option value="${menu.id}" ${menu.id === item.menuId ? 'selected' : ''}>${esc(menu.nameZh)} · ${esc(menu.code)}</option>`).join('');
+  showModal('改菜', `${service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`} · 当前 ${item.nameZh} ×${item.pendingQty}`,
+    `<form data-form="change-item"><input type="hidden" name="itemId" value="${itemId}"><div class="field"><label>改为菜品</label><select class="field-input" name="menuId" required>${options}</select></div><div class="field"><label>改后待出份数</label><input class="field-input" name="qty" type="number" min="1" max="30" value="${item.pendingQty}" required></div><div class="field"><label>新菜备注</label><input class="field-input" name="note" maxlength="300" value="${esc(item.note || '')}"></div><p class="hint">后厨会立即语音提示并闪烁显示，10 秒后自动改菜。</p>${modalActions('确认改菜并通知后厨')}</form>`);
+}
+
+function openMoveService() {
+  const service = activeService();
+  if (!service || service.kind !== 'dine-in' || service.status !== 'open') return;
+  const options = state.tables.filter(table => table.id !== service.tableId).map(table => {
+    const occupied = serviceForTable(table.id);
+    const desc = occupied ? `${occupied.displayCode}（合并到此桌）` : `${table.id}（转到空桌）`;
+    return `<option value="${esc(table.id)}">${esc(desc)}</option>`;
+  }).join('');
+  if (!options) { toast('没有可选的目标桌', true); return; }
+  showModal('转桌 / 并台', `当前桌号：${service.displayCode}`, `<form data-form="move-service"><div class="field"><label>目标桌</label><select class="field-input" name="targetTableId" required>${options}</select></div><p class="hint">空桌会转移本桌服务单；已有服务单的桌会合并两桌菜品和人数。</p>${modalActions('确认转桌或并台')}</form>`);
+}
+
+function openEmployeeEditor(employeeId = null) {
+  const employee = (state.employees || []).find(row => row.id === employeeId);
+  showModal(employee ? '编辑员工' : '添加员工', employee ? '可留空 PIN 以保留现有密码' : '员工使用此 PIN 登录，操作会记录姓名和时间',
+    `<form data-form="employee"><input type="hidden" name="id" value="${esc(employee?.id || '')}"><input type="hidden" name="active" value="${employee?.active === false ? 'false' : 'true'}"><div class="field"><label>员工姓名</label><input class="field-input" name="name" maxlength="40" required value="${esc(employee?.name || '')}"></div><div class="field"><label>员工代号</label><input class="field-input" name="code" maxlength="20" pattern="[A-Za-z0-9_-]+" required value="${esc(employee?.code || '')}"></div><div class="field"><label>员工 PIN（6–12 位数字）</label><input class="field-input" name="pin" type="password" inputmode="numeric" pattern="[0-9]{6,12}" ${employee ? '' : 'required'} autocomplete="new-password"></div>${modalActions(employee ? '保存员工' : '添加员工')}</form>`);
 }
 
 function openMenuEditor(menuId = null) {
@@ -557,6 +574,8 @@ document.addEventListener('click', async event => {
   }
   if (action === 'print') { window.print(); return; }
   if (action === 'cancel-item') { openCancel(key); return; }
+  if (action === 'change-item') { openChange(key); return; }
+  if (action === 'move-service') { openMoveService(); return; }
   if (action === 'rush') { if (await mutate(`/api/services/${activeId}/rush`)) toast('已通知后厨催菜'); return; }
   if (action === 'discard') {
     if (!confirm('取消这个尚未下单的服务单？')) return;
@@ -565,7 +584,12 @@ document.addEventListener('click', async event => {
   }
   if (action === 'serve') {
     const result = await mutate(`/api/items/${key}/serve`, { qty: Number(button.dataset.qty) });
-    if (result) { undo = { id: result.actionId, at: result.at }; toast('已上桌 / Servi'); render(); }
+    if (result) { undo = { id: result.actionId, at: result.at }; setTimeout(() => { if (undo?.id === result.actionId) { undo = null; render(); } }, 10000); toast('已上桌 / Servi'); render(); }
+    return;
+  }
+  if (action === 'serve-all') {
+    const result = await mutate(`/api/services/${key}/serve-all`);
+    if (result) { undo = { id: result.actionId, at: result.at }; setTimeout(() => { if (undo?.id === result.actionId) { undo = null; render(); } }, 10000); toast('本单菜品已全部上桌'); render(); }
     return;
   }
   if (action === 'undo') {
@@ -574,7 +598,7 @@ document.addEventListener('click', async event => {
   }
   if (action === 'complete') {
     if (!confirm('确认所有菜已经上齐，并将此单标为完单？\nTous les plats ont-ils été servis ?')) return;
-    if (await mutate(`/api/services/${key}/complete`)) toast('已完单 / Commande terminée');
+    if (await mutate(`/api/services/${key}/complete`)) { undo = null; toast('已完单，桌位已自动释放 / Commande terminée'); render(); }
     return;
   }
   if (action === 'fullscreen') {
@@ -587,6 +611,15 @@ document.addEventListener('click', async event => {
   if (action === 'admin-tab') { adminTab = button.dataset.tab; render(); return; }
   if (action === 'new-menu') { openMenuEditor(); return; }
   if (action === 'edit-menu') { openMenuEditor(key); return; }
+  if (action === 'new-employee') { openEmployeeEditor(); return; }
+  if (action === 'edit-employee') { openEmployeeEditor(key); return; }
+  if (action === 'toggle-employee') {
+    const employee = (state.employees || []).find(row => row.id === key);
+    if (!employee) return;
+    const active = button.dataset.active === '1';
+    if (await mutate(`/api/employees/${key}`, { name: employee.name, code: employee.code, active }, 'PUT')) toast(active ? '员工已启用' : '员工已停用');
+    return;
+  }
   if (action === 'history-detail') { openHistory(key); return; }
   if (action === 'save-stock' || action === 'toggle-soldout') {
     const value = action === 'save-stock' ? document.querySelector(`[data-stock="${CSS.escape(key)}"]`).value : button.dataset.stockValue;
@@ -619,8 +652,16 @@ document.addEventListener('submit', async event => {
   event.preventDefault();
   const values = Object.fromEntries(new FormData(form).entries());
   if (form.dataset.form === 'login') {
-    try { const result = await api('/api/login', { method: 'POST', body: { pin: values.pin } }); auth = { pinRequired: true, authorized: true, role: result.role }; await loadState(); connectEvents(); }
+    try { const result = await api('/api/login', { method: 'POST', body: { pin: values.pin } }); auth = { pinRequired: true, authorized: true, role: result.role, actor: result.actor, employeeCode: result.employeeCode, adminUnlocked: result.adminUnlocked }; await loadState(); connectEvents(); }
     catch (error) { toast(error.message, true); }
+    return;
+  }
+  if (form.dataset.form === 'admin-unlock') {
+    try {
+      await api('/api/admin/unlock', { method: 'POST', body: { pin: values.pin } });
+      await loadState();
+      toast('管理员验证通过');
+    } catch (error) { toast(error.message, true); }
     return;
   }
   if (form.dataset.form === 'start-service') {
@@ -629,7 +670,28 @@ document.addEventListener('submit', async event => {
     return;
   }
   if (form.dataset.form === 'cancel-item') {
-    if (await mutate(`/api/items/${values.itemId}/cancel`, { qty: Number(values.qty) })) { closeModal(); toast('退菜已通知后厨'); }
+    if (await mutate(`/api/items/${values.itemId}/cancel`, { qty: Number(values.qty) })) { closeModal(); toast('后厨已收到退菜提醒，10 秒后自动处理'); }
+    return;
+  }
+  if (form.dataset.form === 'change-item') {
+    if (await mutate(`/api/items/${values.itemId}/change`, { menuId: values.menuId, qty: Number(values.qty), note: values.note })) { closeModal(); toast('后厨已收到改菜提醒，10 秒后自动处理'); }
+    return;
+  }
+  if (form.dataset.form === 'move-service') {
+    const result = await mutate(`/api/services/${activeId}/move`, { targetTableId: values.targetTableId });
+    if (result) {
+      activeId = result.id;
+      closeModal();
+      navigate('order');
+      toast(result.operation === 'merge' ? `已并入桌号：${result.displayCode}` : `已转到桌号：${result.displayCode}`);
+    }
+    return;
+  }
+  if (form.dataset.form === 'employee') {
+    const body = { name: values.name, code: values.code, active: values.active !== 'false' };
+    if (values.pin) body.pin = values.pin;
+    const result = await mutate(values.id ? `/api/employees/${values.id}` : '/api/employees', body, values.id ? 'PUT' : 'POST');
+    if (result) { closeModal(); toast(values.id ? '员工信息已保存' : '员工已添加'); }
     return;
   }
   if (form.dataset.form === 'menu') {
@@ -649,27 +711,12 @@ document.addEventListener('submit', async event => {
 
 document.addEventListener('keydown', event => { if (event.key === 'Escape') closeModal(); });
 document.addEventListener('fullscreenchange', () => {
-  if (document.fullscreenElement?.id === 'kitchen-screen') document.fullscreenElement.append(parisClockRoot);
-  else document.body.append(parisClockRoot);
   if (!document.fullscreenElement && kitchenWakeLock) { kitchenWakeLock.release().catch(() => {}); kitchenWakeLock = null; }
 });
 window.addEventListener('hashchange', () => {
   const next = location.hash.slice(1);
   if (['tables', 'kitchen', 'expo', 'admin'].includes(next) && next !== view) { view = next; render(); }
 });
-
-function updateClocks() {
-  const parisNow = parisTimeFormatter.format(new Date());
-  document.querySelectorAll('[data-paris-time]').forEach(node => { node.textContent = parisNow; });
-  document.querySelectorAll('[data-minutes]').forEach(node => { node.textContent = `${minutes(node.dataset.minutes)} 分钟`; });
-  document.querySelectorAll('[data-expo-minutes]').forEach(node => { node.textContent = `等待 / Attente ${minutes(node.dataset.expoMinutes)} min`; });
-  if (undo) {
-    const left = Math.ceil((10000 - (Date.now() - Date.parse(undo.at))) / 1000);
-    const clockNode = document.getElementById('undo-seconds');
-    if (clockNode) clockNode.textContent = Math.max(0, left);
-    if (left <= 0) { undo = null; document.querySelector('.undo')?.remove(); }
-  }
-}
 
 async function boot() {
   try {
@@ -679,6 +726,5 @@ async function boot() {
   } catch { app.innerHTML = '<div class="loading">无法连接餐厅服务。请确认本地服务器正在运行。</div>'; }
 }
 
-setInterval(() => { updateClocks(); if (auth?.authorized && document.visibilityState === 'visible') loadState(); }, 15000);
-setInterval(updateClocks, 1000);
+setInterval(() => { if (auth?.authorized && document.visibilityState === 'visible') loadState(); }, 15000);
 boot();

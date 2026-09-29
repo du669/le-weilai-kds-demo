@@ -47,7 +47,7 @@ read_env() {
 set_env DOMAIN "$DOMAIN"
 set_env APP_BASE_PATH "$APP_BASE_PATH"
 new_credentials=0
-for key in APP_PIN ADMIN_PIN; do
+for key in ADMIN_PIN; do
   value="$(read_env "$key")"
   if [[ ! "$value" =~ ^[A-Za-z0-9_-]{6,128}$ || "$value" == CHANGE_ME* ]]; then
     value="$(openssl rand -hex 8 | tr 'abcdef' '012345')"
@@ -75,8 +75,7 @@ echo "检查状态: docker compose ps"
 echo "数据库位于持久化卷 restaurant_data；重新部署不会清空订单。"
 if (( new_credentials )) && [[ "${CI:-}" != "true" ]]; then
   echo
-  echo "首次生成的登录 PIN（请安全保存）："
-  printf '员工 PIN: %s\n' "$(read_env APP_PIN)"
+  echo "首次生成的管理员 PIN（请安全保存）："
   printf '管理员 PIN: %s\n' "$(read_env ADMIN_PIN)"
   echo "PIN 也保存在权限为 600 的 .env 文件中。"
 fi

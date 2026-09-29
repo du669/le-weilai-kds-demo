@@ -55,7 +55,8 @@ export function openDatabase(file) {
       kind TEXT NOT NULL CHECK(kind IN ('dine-in','takeaway')),
       covers INTEGER NOT NULL CHECK(covers > 0),
       status TEXT NOT NULL CHECK(status IN ('open','complete','closed')),
-      opened_at TEXT NOT NULL, completed_at TEXT, closed_at TEXT, last_served_at TEXT
+      opened_at TEXT NOT NULL, completed_at TEXT, closed_at TEXT, last_served_at TEXT,
+      merged_into TEXT REFERENCES services(id)
     );
     CREATE UNIQUE INDEX IF NOT EXISTS one_live_service_per_table
       ON services(table_id) WHERE table_id IS NOT NULL AND closed_at IS NULL;
@@ -81,7 +82,25 @@ export function openDatabase(file) {
       id TEXT PRIMARY KEY, service_id TEXT NOT NULL REFERENCES services(id),
       item_id TEXT NOT NULL REFERENCES order_items(id), qty INTEGER NOT NULL,
       at TEXT NOT NULL, prev_item_served_at TEXT, prev_service_last_served_at TEXT,
-      undone_at TEXT
+      undone_at TEXT, batch_id TEXT
+    );
+    CREATE TABLE IF NOT EXISTS item_change_requests (
+      id TEXT PRIMARY KEY, service_id TEXT NOT NULL REFERENCES services(id),
+      item_id TEXT NOT NULL REFERENCES order_items(id),
+      kind TEXT NOT NULL CHECK(kind IN ('cancel','change')),
+      qty INTEGER NOT NULL CHECK(qty > 0),
+      new_menu_id TEXT REFERENCES menu_items(id), new_qty INTEGER,
+      note TEXT NOT NULL DEFAULT '', old_name TEXT NOT NULL, new_name TEXT NOT NULL DEFAULT '',
+      actor TEXT NOT NULL, created_at TEXT NOT NULL, apply_at TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','applied','cancelled')),
+      completed_at TEXT
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS one_pending_change_per_item
+      ON item_change_requests(item_id) WHERE status='pending';
+    CREATE TABLE IF NOT EXISTS employees (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, code TEXT NOT NULL UNIQUE,
+      pin_hash TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL,
@@ -101,6 +120,10 @@ export function openDatabase(file) {
   if (!orderColumns.has('print_error')) db.exec('ALTER TABLE orders ADD COLUMN print_error TEXT');
   if (!orderColumns.has('printed_at')) db.exec('ALTER TABLE orders ADD COLUMN printed_at TEXT');
   if (!orderColumns.has('print_attempts')) db.exec('ALTER TABLE orders ADD COLUMN print_attempts INTEGER NOT NULL DEFAULT 0');
+  const serviceColumns = new Set(db.prepare('PRAGMA table_info(services)').all().map(row => row.name));
+  if (!serviceColumns.has('merged_into')) db.exec('ALTER TABLE services ADD COLUMN merged_into TEXT REFERENCES services(id)');
+  const serveActionColumns = new Set(db.prepare('PRAGMA table_info(serve_actions)').all().map(row => row.name));
+  if (!serveActionColumns.has('batch_id')) db.exec('ALTER TABLE serve_actions ADD COLUMN batch_id TEXT');
   if (db.prepare('SELECT count(*) AS n FROM menu_items').get().n === 0) {
     transaction(db, () => {
       const insert = db.prepare(`INSERT INTO menu_items
@@ -161,7 +184,7 @@ const itemRow = row => ({
 export function getService(db, serviceId) {
   const service = db.prepare(`SELECT id,display_code AS displayCode,table_id AS tableId,kind,covers,status,
     opened_at AS openedAt,completed_at AS completedAt,closed_at AS closedAt,
-    last_served_at AS lastServedAt FROM services WHERE id=?`).get(serviceId);
+    last_served_at AS lastServedAt,merged_into AS mergedInto FROM services WHERE id=?`).get(serviceId);
   if (!service) throw new AppError('服务单不存在', 404);
   const orders = db.prepare(`SELECT id,service_id AS serviceId,created_at AS createdAt,
     print_status AS printStatus,print_error AS printError,printed_at AS printedAt,
@@ -172,10 +195,49 @@ export function getService(db, serviceId) {
     created_at AS createdAt,served_at AS servedAt,cancelled_at AS cancelledAt,
     cancel_reason AS cancelReason FROM order_items WHERE order_id=? ORDER BY rowid`);
   service.orders = orders.map(order => ({ ...order, items: fetchItems.all(order.id).map(itemRow) }));
+  service.pendingChanges = db.prepare(`SELECT id,item_id AS itemId,kind,qty,new_qty AS newQty,
+    old_name AS oldName,new_name AS newName,actor,created_at AS createdAt,apply_at AS applyAt
+    FROM item_change_requests WHERE service_id=? AND status='pending' ORDER BY created_at`).all(serviceId);
   return service;
 }
 
-export function snapshot(db) {
+const employeeRows = db => db.prepare(`SELECT id,name,code,active,created_at AS createdAt,updated_at AS updatedAt
+  FROM employees ORDER BY active DESC,name COLLATE NOCASE`).all().map(row => ({ ...row, active: !!row.active }));
+
+export function saveEmployee(db, input, pinHash, actor = '管理员') {
+  return transaction(db, () => {
+    const employeeId = input.id ? String(input.id) : id();
+    const name = String(input.name || '').trim();
+    const code = String(input.code || '').trim();
+    if (!name || name.length > 40) throw new AppError('员工姓名须为 1–40 个字符');
+    if (!/^[\p{L}\p{N}_-]{1,20}$/u.test(code)) throw new AppError('员工代号须为 1–20 位字母、数字或短横线');
+    const existing = db.prepare('SELECT id FROM employees WHERE id=?').get(employeeId);
+    if (!existing && !pinHash) throw new AppError('新员工必须设置 PIN');
+    const stamp = iso();
+    if (existing) {
+      const active = input.active === false || input.active === 'false' || input.active === 0 ? 0 : 1;
+      db.prepare(`UPDATE employees SET name=?,code=?,pin_hash=COALESCE(?,pin_hash),active=?,updated_at=? WHERE id=?`)
+        .run(name, code, pinHash, active, stamp, employeeId);
+    } else {
+      db.prepare(`INSERT INTO employees (id,name,code,pin_hash,active,created_at,updated_at)
+        VALUES (?,?,?,?,1,?,?)`).run(employeeId, name, code, pinHash, stamp, stamp);
+    }
+    log(db, actor, existing ? '更新员工' : '新增员工', { employeeId, name, code, active: input.active !== false && input.active !== 'false' && input.active !== 0 });
+    return employeeRows(db);
+  });
+}
+
+export function setEmployeeActive(db, employeeId, active, actor = '管理员') {
+  return transaction(db, () => {
+    const employee = db.prepare('SELECT id,name,code FROM employees WHERE id=?').get(employeeId);
+    if (!employee) throw new AppError('员工不存在', 404);
+    db.prepare('UPDATE employees SET active=?,updated_at=? WHERE id=?').run(active ? 1 : 0, iso(), employeeId);
+    log(db, actor, active ? '启用员工' : '停用员工', employee);
+    return employeeRows(db);
+  });
+}
+
+export function snapshot(db, includeAdmin = false) {
   const serviceIds = db.prepare(`SELECT id FROM services WHERE closed_at IS NULL ORDER BY opened_at`).all();
   return {
     serverTime: iso(),
@@ -183,12 +245,13 @@ export function snapshot(db) {
     menu: db.prepare(`SELECT id,code,name_zh AS nameZh,name_fr AS nameFr,category,
       price_cents AS priceCents,type,stock,allergens,aliases,active FROM menu_items ORDER BY code`).all().map(menuRow),
     services: serviceIds.map(row => getService(db, row.id)),
-    history: db.prepare(`SELECT id,display_code AS displayCode,table_id AS tableId,kind,covers,
+    history: includeAdmin ? db.prepare(`SELECT id,display_code AS displayCode,table_id AS tableId,kind,covers,
       opened_at AS openedAt,completed_at AS completedAt,closed_at AS closedAt
-      FROM services WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 40`).all(),
-    events: db.prepare('SELECT id,at,actor,action,detail FROM events ORDER BY id DESC LIMIT 80').all()
-      .map(row => ({ ...row, detail: JSON.parse(row.detail) })),
-    settings: Object.fromEntries(db.prepare('SELECT key,value FROM settings').all().map(row => [row.key, JSON.parse(row.value)]))
+      FROM services WHERE closed_at IS NOT NULL AND merged_into IS NULL ORDER BY closed_at DESC LIMIT 40`).all() : [],
+    events: includeAdmin ? db.prepare('SELECT id,at,actor,action,detail FROM events ORDER BY id DESC LIMIT 80').all()
+      .map(row => ({ ...row, detail: JSON.parse(row.detail) })) : [],
+    settings: Object.fromEntries(db.prepare('SELECT key,value FROM settings').all().map(row => [row.key, JSON.parse(row.value)])),
+    ...(includeAdmin ? { employees: employeeRows(db) } : {})
   };
 }
 
@@ -298,6 +361,9 @@ export function servePortions(db, itemId, input, actor = '出菜口') {
   return transaction(db, () => {
     const item = itemContext(db, itemId);
     if (item.serviceStatus !== 'open') throw new AppError('此单已完单', 409);
+    if (db.prepare("SELECT id FROM item_change_requests WHERE item_id=? AND status='pending'").get(itemId)) {
+      throw new AppError('此菜正在处理改菜或退菜请求，暂不能上桌', 409);
+    }
     const pending = item.qty - item.served_qty - item.cancelled_qty;
     const qty = Number(input.qty ?? 1);
     if (!Number.isInteger(qty) || qty < 1 || qty > pending) throw new AppError('上桌数量超过待出份数', 409);
@@ -305,10 +371,38 @@ export function servePortions(db, itemId, input, actor = '出菜口') {
     const actionId = id();
     db.prepare(`INSERT INTO serve_actions (id,service_id,item_id,qty,at,prev_item_served_at,prev_service_last_served_at)
       VALUES (?,?,?,?,?,?,?)`).run(actionId, item.serviceId, itemId, qty, stamp, item.served_at, item.serviceLastServedAt);
-    db.prepare('UPDATE order_items SET served_qty=served_qty+?,served_at=?,rush=0 WHERE id=?').run(qty, stamp, itemId);
+    db.prepare(`UPDATE order_items SET served_qty=served_qty+?,served_at=?,
+      rush=CASE WHEN served_qty+?+cancelled_qty>=qty THEN 0 ELSE rush END WHERE id=?`)
+      .run(qty, stamp, qty, itemId);
     db.prepare('UPDATE services SET last_served_at=? WHERE id=?').run(stamp, item.serviceId);
     log(db, actor, '上桌', { serviceId: item.serviceId, displayCode: item.displayCode, itemId, name: item.name_zh, qty });
     return { actionId, at: stamp, service: getService(db, item.serviceId) };
+  });
+}
+
+export function serveAll(db, serviceId, actor = '出菜口') {
+  return transaction(db, () => {
+    const service = getService(db, serviceId);
+    if (service.status !== 'open') throw new AppError('此单已完单', 409);
+    if (service.pendingChanges.length) throw new AppError('此单有改菜或退菜请求正在处理，暂不能一键上桌', 409);
+    const pending = service.orders.flatMap(order => order.items).filter(item => item.pendingQty > 0);
+    if (!pending.length) throw new AppError('没有待上桌菜品');
+    const batchId = id();
+    const stamp = iso();
+    const insert = db.prepare(`INSERT INTO serve_actions
+      (id,service_id,item_id,qty,at,prev_item_served_at,prev_service_last_served_at,batch_id)
+      VALUES (?,?,?,?,?,?,?,?)`);
+    let lastActionId;
+    for (const item of pending) {
+      lastActionId = id();
+      insert.run(lastActionId, serviceId, item.id, item.pendingQty, stamp, item.servedAt, service.lastServedAt, batchId);
+      db.prepare('UPDATE order_items SET served_qty=served_qty+?,served_at=?,rush=0 WHERE id=?')
+        .run(item.pendingQty, stamp, item.id);
+    }
+    db.prepare('UPDATE services SET last_served_at=? WHERE id=?').run(stamp, serviceId);
+    log(db, actor, '一键上桌', { serviceId, displayCode: service.displayCode,
+      items: pending.map(item => ({ name: item.nameZh, qty: item.pendingQty })) });
+    return { actionId: lastActionId, batchId, at: stamp, service: getService(db, serviceId) };
   });
 }
 
@@ -321,12 +415,19 @@ export function undoServe(db, actionId, actor = '出菜口') {
     if (latest?.id !== actionId) throw new AppError('只能撤销该单最近一次划单', 409);
     const service = getService(db, action.service_id);
     if (service.status !== 'open') throw new AppError('此单已完单', 409);
-    db.prepare('UPDATE order_items SET served_qty=served_qty-?,served_at=? WHERE id=?')
-      .run(action.qty, action.prev_item_served_at, action.item_id);
+    const actions = action.batch_id
+      ? db.prepare('SELECT * FROM serve_actions WHERE batch_id=? AND undone_at IS NULL ORDER BY rowid DESC').all(action.batch_id)
+      : [action];
+    for (const served of actions) {
+      db.prepare('UPDATE order_items SET served_qty=served_qty-?,served_at=? WHERE id=?')
+        .run(served.qty, served.prev_item_served_at, served.item_id);
+    }
     db.prepare('UPDATE services SET last_served_at=? WHERE id=?')
-      .run(action.prev_service_last_served_at, action.service_id);
-    db.prepare('UPDATE serve_actions SET undone_at=? WHERE id=?').run(iso(), actionId);
-    log(db, actor, '撤销划单', { serviceId: action.service_id, actionId });
+      .run(actions.at(-1)?.prev_service_last_served_at ?? action.prev_service_last_served_at, action.service_id);
+    const stamp = iso();
+    if (action.batch_id) db.prepare('UPDATE serve_actions SET undone_at=? WHERE batch_id=? AND undone_at IS NULL').run(stamp, action.batch_id);
+    else db.prepare('UPDATE serve_actions SET undone_at=? WHERE id=?').run(stamp, actionId);
+    log(db, actor, action.batch_id ? '撤销一键上桌' : '撤销划单', { serviceId: action.service_id, actionId, batchId: action.batch_id });
     return getService(db, action.service_id);
   });
 }
@@ -338,13 +439,113 @@ export function cancelPortions(db, itemId, input, actor = '服务员') {
     const pending = item.qty - item.served_qty - item.cancelled_qty;
     const qty = Number(input.qty ?? pending);
     if (!Number.isInteger(qty) || qty < 1 || qty > pending) throw new AppError('退菜数量超过待出份数', 409);
-    db.prepare("UPDATE order_items SET cancelled_qty=cancelled_qty+?,cancelled_at=?,cancel_reason='',rush=0 WHERE id=?")
-      .run(qty, iso(), itemId);
-    db.prepare('UPDATE menu_items SET stock=stock+?,updated_at=? WHERE id=? AND stock IS NOT NULL')
-      .run(qty, iso(), item.menu_id);
-    log(db, actor, '退菜', { serviceId: item.serviceId, displayCode: item.displayCode, itemId, name: item.name_zh, qty });
-    return getService(db, item.serviceId);
+    if (db.prepare("SELECT id FROM item_change_requests WHERE item_id=? AND status='pending'").get(itemId)) {
+      throw new AppError('该菜已有改菜或退菜请求在处理中', 409);
+    }
+    const requestId = id();
+    const createdAt = iso();
+    const applyAt = new Date(Date.now() + 10000).toISOString();
+    db.prepare(`INSERT INTO item_change_requests
+      (id,service_id,item_id,kind,qty,old_name,actor,created_at,apply_at)
+      VALUES (?,?,?,'cancel',?,?,?,?,?)`)
+      .run(requestId, item.serviceId, itemId, qty, item.name_zh, actor, createdAt, applyAt);
+    log(db, actor, '退菜', { requestId, serviceId: item.serviceId, displayCode: item.displayCode, itemId, name: item.name_zh, qty });
+    return { ...getService(db, item.serviceId), changeRequestId: requestId, applyAt };
   });
+}
+
+export function changeItem(db, itemId, input, actor = '服务员') {
+  return transaction(db, () => {
+    const item = itemContext(db, itemId);
+    if (item.serviceStatus !== 'open') throw new AppError('此单已完单', 409);
+    const pending = item.qty - item.served_qty - item.cancelled_qty;
+    if (!pending) throw new AppError('没有待出的份数可以修改', 409);
+    if (db.prepare("SELECT id FROM item_change_requests WHERE item_id=? AND status='pending'").get(itemId)) {
+      throw new AppError('该菜已有改菜或退菜请求在处理中', 409);
+    }
+    const menu = db.prepare('SELECT * FROM menu_items WHERE id=? AND active=1').get(String(input.menuId || ''));
+    if (!menu) throw new AppError('替换菜品已下架，请刷新菜单', 409);
+    const qty = Number(input.qty);
+    if (!Number.isInteger(qty) || qty < 1 || qty > 30) throw new AppError('修改后的份数须为 1–30');
+    const note = String(input.note || '').trim();
+    if (note.length > 300) throw new AppError('备注不能超过 300 字');
+    const sameMenu = menu.id === item.menu_id;
+    if (sameMenu && qty === pending && note === item.note) throw new AppError('菜品内容没有变化');
+    const reserveQty = sameMenu ? Math.max(0, qty - pending) : qty;
+    if (menu.stock !== null && reserveQty > menu.stock) throw new AppError(`${menu.name_zh} 库存不足`, 409);
+    if (menu.stock !== null && reserveQty > 0) {
+      const reserved = db.prepare('UPDATE menu_items SET stock=stock-?,updated_at=? WHERE id=? AND stock>=?')
+        .run(reserveQty, iso(), menu.id, reserveQty);
+      if (!reserved.changes) throw new AppError(`${menu.name_zh} 库存不足`, 409);
+    }
+    const requestId = id();
+    const createdAt = iso();
+    const applyAt = new Date(Date.now() + 10000).toISOString();
+    db.prepare(`INSERT INTO item_change_requests
+      (id,service_id,item_id,kind,qty,new_menu_id,new_qty,note,old_name,new_name,actor,created_at,apply_at)
+      VALUES (?,?,?,'change',?,?,?,?,?,?,?,?,?)`)
+      .run(requestId, item.serviceId, itemId, pending, menu.id, qty, note, item.name_zh, menu.name_zh, actor, createdAt, applyAt);
+    log(db, actor, '改菜', { requestId, serviceId: item.serviceId, displayCode: item.displayCode,
+      itemId, name: item.name_zh, newName: menu.name_zh, qty });
+    return { ...getService(db, item.serviceId), changeRequestId: requestId, applyAt };
+  });
+}
+
+export function applyDueItemChanges(db) {
+  const due = db.prepare("SELECT id FROM item_change_requests WHERE status='pending' AND apply_at<=? ORDER BY apply_at")
+    .all(iso());
+  let applied = 0;
+  for (const { id: requestId } of due) {
+    transaction(db, () => {
+      const request = db.prepare(`SELECT * FROM item_change_requests WHERE id=? AND status='pending'`).get(requestId);
+      if (!request) return;
+      const item = itemContext(db, request.item_id);
+      const pending = item.qty - item.served_qty - item.cancelled_qty;
+      if (item.serviceStatus !== 'open' || pending < request.qty) {
+        if (request.kind === 'change') {
+          const reservedQty = request.new_menu_id === item.menu_id ? Math.max(0, request.new_qty - request.qty) : request.new_qty;
+          db.prepare('UPDATE menu_items SET stock=stock+?,updated_at=? WHERE id=? AND stock IS NOT NULL')
+            .run(reservedQty, iso(), request.new_menu_id);
+        }
+        db.prepare("UPDATE item_change_requests SET status='cancelled',completed_at=? WHERE id=?").run(iso(), requestId);
+        return;
+      }
+      const stamp = iso();
+      if (request.kind === 'cancel') {
+        db.prepare(`UPDATE order_items SET cancelled_qty=cancelled_qty+?,cancelled_at=?,cancel_reason='',
+          rush=CASE WHEN served_qty+cancelled_qty+? >= qty THEN 0 ELSE rush END WHERE id=?`)
+          .run(request.qty, stamp, request.qty, request.item_id);
+        db.prepare('UPDATE menu_items SET stock=stock+?,updated_at=? WHERE id=? AND stock IS NOT NULL')
+          .run(request.qty, stamp, item.menu_id);
+      } else if (request.new_menu_id === item.menu_id) {
+        const refundQty = Math.max(0, pending - request.new_qty);
+        db.prepare('UPDATE order_items SET qty=served_qty+cancelled_qty+?,note=?,created_at=?,rush=0 WHERE id=?')
+          .run(request.new_qty, request.note, stamp, request.item_id);
+        db.prepare('UPDATE menu_items SET stock=stock+?,updated_at=? WHERE id=? AND stock IS NOT NULL')
+          .run(refundQty, stamp, item.menu_id);
+      } else {
+        const replacement = db.prepare('SELECT * FROM menu_items WHERE id=?').get(request.new_menu_id);
+        db.prepare("UPDATE order_items SET cancelled_qty=cancelled_qty+?,cancelled_at=?,cancel_reason='',rush=0 WHERE id=?")
+          .run(pending, stamp, request.item_id);
+        db.prepare('UPDATE menu_items SET stock=stock+?,updated_at=? WHERE id=? AND stock IS NOT NULL')
+          .run(pending, stamp, item.menu_id);
+        db.prepare(`INSERT INTO order_items
+          (id,order_id,menu_id,code,name_zh,name_fr,price_cents,type,allergens,qty,note,added,rush,created_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,1,0,?)`)
+          .run(id(), item.order_id, replacement.id, replacement.code, replacement.name_zh,
+            replacement.name_fr, replacement.price_cents, replacement.type, replacement.allergens,
+            request.new_qty, request.note, stamp);
+      }
+      db.prepare("UPDATE item_change_requests SET status='applied',completed_at=? WHERE id=?").run(stamp, requestId);
+      log(db, request.actor, request.kind === 'cancel' ? '退菜完成' : '改菜完成', {
+        requestId, serviceId: request.service_id, displayCode: item.displayCode,
+        itemId: request.item_id, name: request.old_name, newName: request.new_name || undefined,
+        qty: request.kind === 'cancel' ? request.qty : request.new_qty
+      });
+      applied++;
+    });
+  }
+  return applied;
 }
 
 export function rushService(db, serviceId, actor = '服务员') {
@@ -373,13 +574,42 @@ export function completeService(db, serviceId, actor = '出菜口') {
   });
 }
 
-export function closeService(db, serviceId, actor = '服务员') {
+export function moveOrMergeService(db, serviceId, input, actor = '服务员') {
   return transaction(db, () => {
-    const service = getService(db, serviceId);
-    if (service.status !== 'complete' || service.closedAt) throw new AppError('此单已结束', 409);
-    db.prepare("UPDATE services SET status='closed',closed_at=? WHERE id=?").run(iso(), serviceId);
-    log(db, actor, service.kind === 'takeaway' ? '交付打包' : '翻台', { serviceId, displayCode: service.displayCode });
-    return getService(db, serviceId);
+    const source = getService(db, serviceId);
+    if (source.kind !== 'dine-in' || source.status !== 'open' || source.closedAt) {
+      throw new AppError('只有进行中的堂食桌单可以转桌或并台', 409);
+    }
+    if (source.pendingChanges.length) throw new AppError('此桌有改菜或退菜请求正在处理，请稍后再转桌或并台', 409);
+    const targetTableId = String(input.targetTableId || '');
+    if (!targetTableId || targetTableId === source.tableId) throw new AppError('请选择另一张桌');
+    const table = db.prepare('SELECT id FROM dining_tables WHERE id=? AND active=1').get(targetTableId);
+    if (!table) throw new AppError('目标桌号不存在');
+    const target = db.prepare(`SELECT id,display_code AS displayCode,table_id AS tableId,kind,covers,status,
+      opened_at AS openedAt,completed_at AS completedAt,closed_at AS closedAt,last_served_at AS lastServedAt
+      FROM services WHERE table_id=? AND closed_at IS NULL`).get(targetTableId);
+    if (!target) {
+      db.prepare('UPDATE services SET table_id=?,display_code=? WHERE id=?').run(targetTableId, targetTableId, serviceId);
+      log(db, actor, '转桌', { serviceId, fromDisplayCode: source.displayCode, displayCode: targetTableId });
+      return { ...getService(db, serviceId), operation: 'move' };
+    }
+    if (target.status !== 'open') throw new AppError('目标桌已完单，请选择空桌');
+    if (target.id === serviceId) throw new AppError('不能与当前桌并台');
+    const destination = getService(db, target.id);
+    if (destination.pendingChanges.length) throw new AppError('目标桌有改菜或退菜请求正在处理，请稍后再并台', 409);
+    if (source.covers + destination.covers > 30) throw new AppError('并台后人数不能超过 30 人');
+    const stamp = iso();
+    db.prepare('UPDATE orders SET service_id=? WHERE service_id=?').run(destination.id, source.id);
+    db.prepare('UPDATE serve_actions SET service_id=? WHERE service_id=?').run(destination.id, source.id);
+    const lastServedAt = [source.lastServedAt, destination.lastServedAt].filter(Boolean)
+      .sort((a, b) => Date.parse(b) - Date.parse(a))[0] || null;
+    db.prepare('UPDATE services SET covers=?,last_served_at=? WHERE id=?')
+      .run(source.covers + destination.covers, lastServedAt, destination.id);
+    db.prepare("UPDATE services SET status='closed',closed_at=?,merged_into=? WHERE id=?")
+      .run(stamp, destination.id, source.id);
+    log(db, actor, '并台', { serviceId: destination.id, sourceServiceId: source.id,
+      fromDisplayCode: source.displayCode, displayCode: destination.displayCode });
+    return { ...getService(db, destination.id), operation: 'merge' };
   });
 }
 
