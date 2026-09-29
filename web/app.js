@@ -154,18 +154,22 @@ function pendingChangeEntries(services = state?.services || []) {
   return services.flatMap(service => (service.pendingChanges || []).map(change => ({ service, change })));
 }
 
-function announcePendingChanges(services = state?.services || []) {
+function speakKitchenNotice(text) {
   if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
+  const speech = new SpeechSynthesisUtterance(text);
+  speech.lang = 'zh-CN';
+  const voice = speechSynthesis.getVoices().find(candidate => candidate.lang?.toLowerCase().startsWith('zh'));
+  if (voice) speech.voice = voice;
+  speechSynthesis.speak(speech);
+}
+
+function announcePendingChanges(services = state?.services || []) {
   for (const { service, change } of pendingChangeEntries(services)) {
     if (announcedChangeIds.has(change.id)) continue;
     announcedChangeIds.add(change.id);
     const table = service.kind === 'takeaway' ? service.displayCode : `桌号 ${service.displayCode}`;
     const action = change.kind === 'cancel' ? '退菜' : `改菜${change.newName ? `，改为${change.newName}` : ''}`;
-    const speech = new SpeechSynthesisUtterance(`${table}，${change.oldName}，${action}`);
-    speech.lang = 'zh-CN';
-    const voice = speechSynthesis.getVoices().find(candidate => candidate.lang?.toLowerCase().startsWith('zh'));
-    if (voice) speech.voice = voice;
-    speechSynthesis.speak(speech);
+    speakKitchenNotice(`${table}，${change.oldName}，${action}`);
   }
 }
 
@@ -174,10 +178,24 @@ function alertForChanges(previous, next) {
   const oldItems = new Map(previous.services.flatMap(service => allItems(service).map(item => [item.id, item])));
   const incoming = next.services.flatMap(service => allItems(service))
     .filter(item => item.pendingQty > 0 && (view === 'expo' || item.type === 'dish') && !oldItems.has(item.id));
+  const newlyRushed = view === 'kitchen' ? next.services.filter(service =>
+    allItems(service).some(item => item.rush && !oldItems.get(item.id)?.rush)) : [];
   const oldRequests = new Set(pendingChangeEntries(previous.services).map(({ change }) => change.id));
   const changes = pendingChangeEntries(next.services).filter(({ change }) => !oldRequests.has(change.id));
   if (changes.length) { beep(410, .23, .08); setTimeout(() => beep(330, .28, .08), 270); }
   else if (incoming.length) { beep(760, .14); setTimeout(() => beep(960, .14), 180); }
+  for (const service of newlyRushed) {
+    const table = service.kind === 'takeaway' ? service.displayCode : `桌号 ${service.displayCode}`;
+    speakKitchenNotice(`${table}，催菜`);
+  }
+  if (newlyRushed.length && !changes.length && !incoming.length) beep(620, .2, .07);
+}
+
+function updateKitchenWaitTimes() {
+  if (view !== 'kitchen' || document.visibilityState !== 'visible') return;
+  for (const element of document.querySelectorAll('[data-waiting-since]')) {
+    element.textContent = `已等待 ${minutes(element.dataset.waitingSince)} 分钟`;
+  }
 }
 
 function connectEvents() {
@@ -327,7 +345,7 @@ function renderKitchenCards() {
     const heading = service.kind === 'takeaway' ? service.displayCode : `桌号：${service.displayCode}`;
     const lines = items.map(item => {
       const allergy = item.allergens && /过敏|allerg/i.test(item.note);
-      return `<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span>×${item.pendingQty}</span></div><div class="kitchen-line-meta">${item.added ? '<span class="badge green">加菜</span>' : ''}${item.rush ? '<span class="badge red">催菜</span>' : ''}${allergy ? '<span class="badge red">⚠ 过敏提醒</span>' : ''}</div>${item.note ? `<div class="kitchen-note">${allergy ? '⚠ ' : ''}${esc(item.note)}</div>` : ''}</div>`;
+      return `<div class="kitchen-line"><div class="kitchen-dish"><span>${esc(item.nameZh)}</span><span>×${item.pendingQty}</span></div><div class="kitchen-line-meta">${item.added ? '<span class="badge green">加菜</span>' : ''}${item.rush ? '<span class="badge red">催菜</span>' : ''}${allergy ? '<span class="badge red">⚠ 过敏提醒</span>' : ''}<span class="kitchen-wait-time" data-waiting-since="${esc(item.createdAt)}">已等待 ${minutes(item.createdAt)} 分钟</span></div>${item.note ? `<div class="kitchen-note">${allergy ? '⚠ ' : ''}${esc(item.note)}</div>` : ''}</div>`;
     }).join('');
     return `<article class="kitchen-card ${tone} ${rushed ? 'rush' : ''}"><div class="kitchen-card-head"><div><div class="kitchen-code">${esc(heading)}</div><span class="minor">${service.covers} 人 · 下单 ${clock(service.openedAt)}</span></div><div class="kitchen-meta">${rushed ? '<b class="badge red">催菜</b>' : ''}</div></div><div class="kitchen-lines">${lines}</div></article>`;
   }).join('');
@@ -561,7 +579,8 @@ document.addEventListener('click', async event => {
     if (result) {
       clearBasket(); closeModal();
       toast(result.printResult?.status === 'failed' ? `订单已保存，但${result.printResult.message}` : '订单已发送');
-      showReceipt(result);
+      activeId = null;
+      navigate('tables');
     }
     else button.disabled = false;
     return;
@@ -727,4 +746,5 @@ async function boot() {
 }
 
 setInterval(() => { if (auth?.authorized && document.visibilityState === 'visible') loadState(); }, 15000);
+setInterval(updateKitchenWaitTimes, 15000);
 boot();
