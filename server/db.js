@@ -144,6 +144,9 @@ export function openDatabase(file) {
     db.prepare('INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)').run(key, JSON.stringify(value));
   }
   db.prepare("UPDATE services SET closed_at=COALESCE(completed_at,opened_at) WHERE status='complete' AND closed_at IS NULL").run();
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('services') WHERE name='cashed_at'").get()) {
+    db.exec('ALTER TABLE services ADD COLUMN cashed_at TEXT');
+  }
   applyDailyReset(db);
   return db;
 }
@@ -246,7 +249,7 @@ export function snapshot(db, includeAdmin = false) {
       price_cents AS priceCents,type,stock,allergens,aliases,active FROM menu_items ORDER BY code`).all().map(menuRow),
     services: serviceIds.map(row => getService(db, row.id)),
     history: includeAdmin ? db.prepare(`SELECT id,display_code AS displayCode,table_id AS tableId,kind,covers,
-      opened_at AS openedAt,completed_at AS completedAt,closed_at AS closedAt
+      opened_at AS openedAt,completed_at AS completedAt,closed_at AS closedAt,cashed_at AS cashedAt
       FROM services WHERE closed_at IS NOT NULL AND merged_into IS NULL ORDER BY closed_at DESC LIMIT 40`).all() : [],
     events: includeAdmin ? db.prepare('SELECT id,at,actor,action,detail FROM events ORDER BY id DESC LIMIT 80').all()
       .map(row => ({ ...row, detail: JSON.parse(row.detail) })) : [],
@@ -610,6 +613,18 @@ export function moveOrMergeService(db, serviceId, input, actor = '服务员') {
     log(db, actor, '并台', { serviceId: destination.id, sourceServiceId: source.id,
       fromDisplayCode: source.displayCode, displayCode: destination.displayCode });
     return { ...getService(db, destination.id), operation: 'merge' };
+  });
+}
+
+export function markCashed(db, serviceId, cashed, actor = '员工') {
+  return transaction(db, () => {
+    const row = db.prepare('SELECT id,display_code AS displayCode,closed_at AS closedAt FROM services WHERE id=?').get(String(serviceId));
+    if (!row) throw new AppError('服务单不存在', 404);
+    if (!row.closedAt) throw new AppError('服务单还没完单', 400);
+    const stamp = cashed ? iso() : null;
+    db.prepare('UPDATE services SET cashed_at=? WHERE id=?').run(stamp, row.id);
+    log(db, actor, cashed ? '标记已结账' : '取消已结账', { serviceId: row.id, displayCode: row.displayCode });
+    return { id: row.id, cashedAt: stamp };
   });
 }
 

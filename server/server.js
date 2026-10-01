@@ -6,7 +6,7 @@ import { randomBytes, createHash, timingSafeEqual, scryptSync } from 'node:crypt
 import {
   AppError, openDatabase, snapshot, getService, createService, discardService,
   createOrder, servePortions, serveAll, undoServe, cancelPortions, changeItem, applyDueItemChanges, rushService,
-  completeService, moveOrMergeService, saveEmployee, saveMenuItem, setStock, setSettings, seedDemo, recordPrint, applyDailyReset
+  completeService, moveOrMergeService, saveEmployee, saveMenuItem, setStock, setSettings, seedDemo, recordPrint, applyDailyReset, markCashed
 } from './db.js';
 import { printOrder, printerConfigured } from './printer.js';
 
@@ -212,7 +212,7 @@ async function handle(req, res) {
   checkOrigin(req);
   const menuMatch = path.match(/^\/api\/menu\/([^/]+)$/);
   const stockMatch = path.match(/^\/api\/menu\/([^/]+)\/stock$/);
-  const serviceAction = path.match(/^\/api\/services\/([^/]+)\/(orders|rush|complete|discard|move|serve-all)$/);
+  const serviceAction = path.match(/^\/api\/services\/([^/]+)\/(orders|rush|complete|discard|move|serve-all|cashed)$/);
   const itemAction = path.match(/^\/api\/items\/([^/]+)\/(serve|cancel|change)$/);
   const undoAction = path.match(/^\/api\/serve-actions\/([^/]+)\/undo$/);
   const reprintAction = path.match(/^\/api\/orders\/([^/]+)\/reprint$/);
@@ -241,6 +241,7 @@ async function handle(req, res) {
       return json(res, 200, result);
     }
     result = action === 'rush' ? rushService(db, serviceId, session.actor)
+      : action === 'cashed' ? markCashed(db, serviceId, body.cashed !== false, session.actor)
       : action === 'complete' ? completeService(db, serviceId, session.actor)
       : action === 'move' ? moveOrMergeService(db, serviceId, body, session.actor)
       : action === 'serve-all' ? serveAll(db, serviceId, session.actor)
