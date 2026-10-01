@@ -553,14 +553,17 @@ function renderKitchen() {
 }
 
 let expoDoneOpen = false;
+let expoDoneShowAll = false;
 function renderExpoDone() {
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
-  const done = (state.history || []).filter(h => (h.closedAt || '').slice(0, 10) === today);
-  if (!done.length) return '';
+  const all = (state.history || []).filter(h => (h.closedAt || '').slice(0, 10) === today);
+  const todo = all.filter(h => !h.cashedAt);
+  if (!all.length) return '';
+  const rows = expoDoneShowAll ? all : todo;
   const body = expoDoneOpen
-    ? `<div class="expo-done-list">${done.map(h => `<button class="expo-done-row" data-action="history-detail" data-id="${h.id}"><b>${esc(h.displayCode)}</b><span>${h.kind === 'takeaway' ? '打包 / Emporter' : '堂食 / Sur place'}</span><span>${clock(h.openedAt)} → ${clock(h.closedAt)}</span><span class="minor">查看 / Voir ›</span></button>`).join('')}</div>`
+    ? `<div class="expo-done-list">${rows.length ? rows.map(h => `<div class="expo-done-row${h.cashedAt ? ' cashed' : ''}"><button class="expo-done-main" data-action="history-detail" data-id="${h.id}"><b>${esc(h.displayCode)}</b><span>${h.kind === 'takeaway' ? '打包 / Emporter' : '堂食 / Sur place'}</span><span>${clock(h.openedAt)} → ${clock(h.closedAt)}</span><span class="minor">查看 / Voir ›</span></button><button class="btn small ${h.cashedAt ? '' : 'primary'}" data-action="toggle-cashed" data-id="${h.id}" data-cashed="${h.cashedAt ? '0' : '1'}">${h.cashedAt ? '↩ 撤销 / Annuler' : '✓ 已收银 / Encaissé'}</button></div>`).join('') : '<div class="empty">全部已收银 / Tout est encaissé</div>'}${all.length !== todo.length ? `<button class="btn small ghost" style="margin-top:8px" data-action="toggle-expo-done-all">${expoDoneShowAll ? '只看待收银 / À encaisser' : `也显示已收银 (${all.length - todo.length}) / Voir encaissés`}</button>` : ''}</div>`
     : '';
-  return `<section class="expo-done"><button class="expo-done-head" data-action="toggle-expo-done"><b>今日已完单 / Terminés aujourd'hui</b><span class="badge blue">${done.length}</span><span class="minor">${expoDoneOpen ? '收起 / Masquer ▲' : '展开 / Afficher ▼'}</span></button>${body}</section>`;
+  return `<section class="expo-done"><button class="expo-done-head" data-action="toggle-expo-done"><b>待收银 / À encaisser</b><span class="badge ${todo.length ? 'amber' : 'blue'}">${todo.length}</span><span class="minor">${expoDoneOpen ? '收起 / Masquer ▲' : '展开 / Afficher ▼'}</span></button>${body}</section>`;
 }
 
 function expoServiceCard(service) {
@@ -799,6 +802,12 @@ document.addEventListener('click', async event => {
     return;
   }
   if (action === 'toggle-expo-done') { expoDoneOpen = !expoDoneOpen; render(); return; }
+  if (action === 'toggle-expo-done-all') { expoDoneShowAll = !expoDoneShowAll; render(); return; }
+  if (action === 'toggle-cashed') {
+    const cashed = button.dataset.cashed === '1';
+    if (await mutate(`/api/services/${button.dataset.id}/cashed`, { cashed })) toast(cashed ? '已标记收银' : '已撤销');
+    return;
+  }
   if (action === 'fullscreen-expo') {
     document.getElementById('expo-screen')?.requestFullscreen().catch(error => toast(error.message, true));
     return;

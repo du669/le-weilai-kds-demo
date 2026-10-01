@@ -333,10 +333,15 @@ a { color: var(--green); }
   padding: 12px 15px; font-size: 15px; font-weight: 750; text-align: left; }
 .expo-done-head .minor { margin-left: auto; font-weight: 600; }
 .expo-done-list { display: grid; gap: 6px; margin-top: 8px; }
-.expo-done-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+.expo-done-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   border: 1px solid var(--line); background: #fff; border-radius: 10px;
-  padding: 12px 15px; font-size: 14px; text-align: left; }
-.expo-done-row .minor { margin-left: auto; white-space: nowrap; }
+  padding: 10px 12px; font-size: 14px; }
+.expo-done-row.cashed { opacity: .5; }
+.expo-done-row.cashed b { text-decoration: line-through; }
+.expo-done-main { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  flex: 1 1 auto; min-width: 0; border: 0; background: none; padding: 0;
+  font-size: 14px; text-align: left; }
+.expo-done-main .minor { margin-left: auto; white-space: nowrap; }
 
 /* ---- 点单:整张菜品卡可点 ---- */
 .menu-card[data-action] { cursor: pointer; }
