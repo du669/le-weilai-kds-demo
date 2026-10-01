@@ -616,6 +616,23 @@ export function moveOrMergeService(db, serviceId, input, actor = '服务员') {
   });
 }
 
+export function reopenService(db, serviceId, actor = '出菜口') {
+  return transaction(db, () => {
+    const row = db.prepare(`SELECT id,display_code AS displayCode,table_id AS tableId,status,
+      merged_into AS mergedInto FROM services WHERE id=?`).get(String(serviceId));
+    if (!row) throw new AppError('服务单不存在', 404);
+    if (row.mergedInto) throw new AppError('此单已并台，不能撤销', 409);
+    if (row.status !== 'complete') throw new AppError('只有已完单的服务单可以撤销', 409);
+    if (row.tableId) {
+      const busy = db.prepare('SELECT id FROM services WHERE table_id=? AND closed_at IS NULL').get(row.tableId);
+      if (busy) throw new AppError('该桌已经重新开台，请在新的服务单上加菜', 409);
+    }
+    db.prepare("UPDATE services SET status='open',completed_at=NULL,closed_at=NULL,cashed_at=NULL WHERE id=?").run(row.id);
+    log(db, actor, '撤销完单', { serviceId: row.id, displayCode: row.displayCode });
+    return getService(db, row.id);
+  });
+}
+
 export function markCashed(db, serviceId, cashed, actor = '员工') {
   return transaction(db, () => {
     const row = db.prepare('SELECT id,display_code AS displayCode,closed_at AS closedAt FROM services WHERE id=?').get(String(serviceId));
