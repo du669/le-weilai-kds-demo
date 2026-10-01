@@ -554,6 +554,7 @@ function renderKitchen() {
 
 let expoDoneOpen = false;
 let expoDoneShowAll = false;
+let expoServedOpen = false;
 function renderExpoDone() {
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
   const all = (state.history || []).filter(h => (h.closedAt || '').slice(0, 10) === today);
@@ -561,7 +562,7 @@ function renderExpoDone() {
   if (!all.length) return '';
   const rows = expoDoneShowAll ? all : todo;
   const body = expoDoneOpen
-    ? `<div class="expo-done-list">${rows.length ? rows.map(h => `<div class="expo-done-row${h.cashedAt ? ' cashed' : ''}"><button class="expo-done-main" data-action="history-detail" data-id="${h.id}"><b>${esc(h.displayCode)}</b><span>${h.kind === 'takeaway' ? '打包 / Emporter' : '堂食 / Sur place'}</span><span>${clock(h.openedAt)} → ${clock(h.closedAt)}</span><span class="minor">查看 / Voir ›</span></button><button class="btn small ${h.cashedAt ? '' : 'primary'}" data-action="toggle-cashed" data-id="${h.id}" data-cashed="${h.cashedAt ? '0' : '1'}">${h.cashedAt ? '↩ 撤销 / Annuler' : '✓ 已收银 / Encaissé'}</button></div>`).join('') : '<div class="empty">全部已收银 / Tout est encaissé</div>'}${all.length !== todo.length ? `<button class="btn small ghost" style="margin-top:8px" data-action="toggle-expo-done-all">${expoDoneShowAll ? '只看待收银 / À encaisser' : `也显示已收银 (${all.length - todo.length}) / Voir encaissés`}</button>` : ''}</div>`
+    ? `<div class="expo-done-list">${rows.length ? rows.map(h => `<div class="expo-done-row${h.cashedAt ? ' cashed' : ''}"><button class="expo-done-main" data-action="history-detail" data-id="${h.id}"><b>${esc(h.displayCode)}</b><span>${h.kind === 'takeaway' ? '打包 / Emporter' : '堂食 / Sur place'}</span><span>${clock(h.openedAt)} → ${clock(h.closedAt)}</span><span class="minor">查看 / Voir ›</span></button><button class="btn small" data-action="reopen-service" data-id="${h.id}" data-code="${esc(h.displayCode)}">↩ 加菜 / Rouvrir</button><button class="btn small ${h.cashedAt ? '' : 'primary'}" data-action="toggle-cashed" data-id="${h.id}" data-cashed="${h.cashedAt ? '0' : '1'}">${h.cashedAt ? '撤销收银 / Annuler' : '✓ 已收银 / Encaissé'}</button></div>`).join('') : '<div class="empty">全部已收银 / Tout est encaissé</div>'}${all.length !== todo.length ? `<button class="btn small ghost" style="margin-top:8px" data-action="toggle-expo-done-all">${expoDoneShowAll ? '只看待收银 / À encaisser' : `也显示已收银 (${all.length - todo.length}) / Voir encaissés`}</button>` : ''}</div>`
     : '';
   return `<section class="expo-done"><button class="expo-done-head" data-action="toggle-expo-done"><b>待收银 / À encaisser</b><span class="badge ${todo.length ? 'amber' : 'blue'}">${todo.length}</span><span class="minor">${expoDoneOpen ? '收起 / Masquer ▲' : '展开 / Afficher ▼'}</span></button>${body}</section>`;
 }
@@ -580,9 +581,14 @@ function expoServiceCard(service) {
 
 function renderExpo() {
   const services = state.services.filter(s => s.orders.length).sort((a, b) => Date.parse(a.openedAt) - Date.parse(b.openedAt));
+  const waiting = services.filter(s => pendingItems(s).some(i => i.pendingQty > 0));
+  const servedAll = services.filter(s => !pendingItems(s).some(i => i.pendingQty > 0));
   const canUndo = undo && Date.now() - Date.parse(undo.at) < 10000;
   const actions = '<button class="btn primary" data-action="fullscreen-expo">⛶ 全屏 / Plein écran</button><button class="btn" data-action="go-stock">沽清 / Rupture</button><button class="btn" data-action="go-overview">今日概览 / Aujourd’hui</button><button class="btn" data-action="nav" data-view="admin">后台 / Gestion</button>';
-  return `${pageHead('出菜口 / Passe', '逐份上桌或一键上桌；全部上齐后点完单自动释放桌位。', actions, 'LE WEILAI / PASS')}${canUndo ? `<div class="undo"><span>刚才划单可撤销 / Annuler le dernier service</span><button class="btn small" data-action="undo">撤销 / Annuler</button></div>` : ''}<div id="expo-screen">${renderExpoDone()}${services.length ? `<div class="expo-grid">${services.map(expoServiceCard).join('')}</div>` : '<div class="empty">没有待出菜的服务单 / Aucune commande en cours</div>'}</div><div class="kitchen-alerts" aria-live="assertive">${renderKitchenAlerts()}</div>`;
+  const servedBlock = servedAll.length
+    ? `<section class="expo-served"><button class="expo-served-head" data-action="toggle-expo-served"><b>已上齐 / Tout servi</b><span class="badge blue">${servedAll.length}</span><span class="minor">${expoServedOpen ? '收起 / Masquer ▲' : '展开 / Afficher ▼'}</span></button>${expoServedOpen ? `<div class="expo-grid" style="margin-top:10px">${servedAll.map(expoServiceCard).join('')}</div>` : `<div class="expo-served-brief">${servedAll.map(s => `<button class="badge blue expo-served-chip" data-action="toggle-expo-served">${esc(s.displayCode)}</button>`).join('')}<span class="minor">客人要加菜就展开，这些单还没完单</span></div>`}</section>`
+    : '';
+  return `${pageHead('出菜口 / Passe', '逐份上桌或一键上桌；上齐的单会收到「已上齐」里，客人走后再点完单。', actions, 'LE WEILAI / PASS')}${canUndo ? `<div class="undo"><span>刚才划单可撤销 / Annuler le dernier service</span><button class="btn small" data-action="undo">撤销 / Annuler</button></div>` : ''}<div id="expo-screen">${renderExpoDone()}${servedBlock}${waiting.length ? `<div class="expo-grid">${waiting.map(expoServiceCard).join('')}</div>` : `<div class="empty">${servedAll.length ? '所有单都已上齐 / Tout est servi' : '没有待出菜的服务单 / Aucune commande en cours'}</div>`}</div><div class="kitchen-alerts" aria-live="assertive">${renderKitchenAlerts()}</div>`;
 }
 
 function renderAdminGate() {
@@ -802,7 +808,13 @@ document.addEventListener('click', async event => {
     return;
   }
   if (action === 'toggle-expo-done') { expoDoneOpen = !expoDoneOpen; render(); return; }
+  if (action === 'toggle-expo-served') { expoServedOpen = !expoServedOpen; render(); return; }
   if (action === 'toggle-expo-done-all') { expoDoneShowAll = !expoDoneShowAll; render(); return; }
+  if (action === 'reopen-service') {
+    const result = await mutate(`/api/services/${button.dataset.id}/reopen`);
+    if (result) { toast(`${button.dataset.code} 已重新开台，可继续加菜`); navigate('tables'); }
+    return;
+  }
   if (action === 'toggle-cashed') {
     const cashed = button.dataset.cashed === '1';
     if (await mutate(`/api/services/${button.dataset.id}/cashed`, { cashed })) toast(cashed ? '已标记收银' : '已撤销');

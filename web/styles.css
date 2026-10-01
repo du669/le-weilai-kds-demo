@@ -346,3 +346,13 @@ a { color: var(--green); }
 /* ---- 点单:整张菜品卡可点 ---- */
 .menu-card[data-action] { cursor: pointer; }
 .menu-card[data-action]:active { background: #f4faf5; border-color: #9ec9ad; }
+
+/* ---- 出菜口:已上齐折叠区 ---- */
+.expo-served { margin-bottom: 14px; }
+.expo-served-head { display: flex; align-items: center; gap: 10px; width: 100%;
+  border: 1px solid var(--line); background: #fff; border-radius: 12px;
+  padding: 12px 15px; font-size: 15px; font-weight: 750; text-align: left; }
+.expo-served-head .minor { margin-left: auto; font-weight: 600; }
+.expo-served-brief { display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+  padding: 9px 4px 0; }
+.expo-served-chip { border: 0; font-size: 13px; padding: 6px 12px; }
