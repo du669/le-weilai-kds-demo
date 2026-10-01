@@ -297,3 +297,24 @@ a { color: var(--green); }
   #print-root .receipt { border: 0; width: 80mm; max-width: none; margin: 0; padding: 0; }
   @page { margin: 3mm; size: 80mm auto; }
 }
+
+/* ---- 手机端适配:防止内容撑宽页面 ---- */
+@media (max-width: 680px) {
+  html, body { max-width: 100%; overflow-x: hidden; }
+  body { min-width: 0; }
+  .app-shell { max-width: 100%; }
+  .container, .container > *, .panel, .panel > * { min-width: 0; }
+  .categories { min-width: 0; max-width: 100%; }
+  .topbar { gap: 8px; padding: 8px 13px; }
+  .brand small { display: none; }
+  .brand { min-width: 0; flex: 1 1 auto; }
+  .actor-name { display: none; }
+  .nav { min-width: 0; }
+  .nav button { flex: 1 1 0; min-width: 0; padding: 10px 4px; font-size: 13px; }
+  .order-columns, .split-layout { grid-template-columns: minmax(0,1fr); }
+  .order-columns > *, .split-layout > * { min-width: 0; }
+  .ordered-line { flex-wrap: wrap; row-gap: 6px; }
+  .ordered-line > * { min-width: 0; }
+  .menu-card * { min-width: 0; overflow-wrap: anywhere; }
+  table { max-width: 100%; }
+}

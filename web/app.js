@@ -264,18 +264,41 @@ async function loadState() {
   }
 }
 
-function beep(frequency = 760, duration = .15, gainValue = .04) {
+let audioContext = null;
+function audio() {
+  const Context = window.AudioContext || window.webkitAudioContext;
+  if (!Context) return null;
+  if (!audioContext || audioContext.state === 'closed') audioContext = new Context();
+  if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+  return audioContext;
+}
+// 浏览器在用户首次交互前禁止播放声音。任何一次点击/按键都解锁。
+for (const type of ['pointerdown', 'keydown', 'touchstart']) {
+  document.addEventListener(type, () => audio(), { passive: true });
+}
+
+function beep(frequency = 760, duration = .15, gainValue = .22) {
   try {
-    const Context = window.AudioContext || window.webkitAudioContext;
-    if (!Context) return;
-    const context = new Context();
+    const context = audio();
+    if (!context) return;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
-    oscillator.type = 'sine'; oscillator.frequency.value = frequency; gain.gain.value = gainValue;
+    oscillator.type = 'sine'; oscillator.frequency.value = frequency;
+    const now = context.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(gainValue, now + .01);
+    gain.gain.setValueAtTime(gainValue, now + duration - .03);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
     oscillator.connect(gain); gain.connect(context.destination);
-    oscillator.start(); oscillator.stop(context.currentTime + duration);
-    oscillator.onended = () => context.close();
+    oscillator.start(now); oscillator.stop(now + duration);
   } catch { /* The device may block audio before user interaction. */ }
+}
+
+// 新单提示:后厨环境嘈杂,连响三声
+function newOrderChime() {
+  beep(880, .18, .3);
+  setTimeout(() => beep(1180, .18, .3), 210);
+  setTimeout(() => beep(880, .3, .3), 430);
 }
 
 function pendingChangeEntries(services = state?.services || []) {
@@ -310,13 +333,13 @@ function alertForChanges(previous, next) {
     allItems(service).some(item => item.rush && !oldItems.get(item.id)?.rush)) : [];
   const oldRequests = new Set(pendingChangeEntries(previous.services).map(({ change }) => change.id));
   const changes = pendingChangeEntries(next.services).filter(({ change }) => !oldRequests.has(change.id));
-  if (changes.length) { beep(410, .23, .08); setTimeout(() => beep(330, .28, .08), 270); }
-  else if (incoming.length) { beep(760, .14); setTimeout(() => beep(960, .14), 180); }
+  if (changes.length) { beep(410, .26, .3); setTimeout(() => beep(330, .32, .3), 280); }
+  else if (incoming.length) newOrderChime();
   for (const service of newlyRushed) {
     const table = service.kind === 'takeaway' ? service.displayCode : `桌号 ${service.displayCode}`;
     speakKitchenNotice(`${table}，催菜`);
   }
-  if (newlyRushed.length && !changes.length && !incoming.length) beep(620, .2, .07);
+  if (newlyRushed.length && !changes.length && !incoming.length) { beep(620, .22, .3); setTimeout(() => beep(620, .22, .3), 260); }
 }
 
 function updateKitchenWaitTimes() {
