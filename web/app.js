@@ -474,7 +474,7 @@ function renderMenu() {
   return items.map(item => {
     const sold = item.stock === 0;
     const inBasket = basket.find(line => line.menuId === item.id)?.qty || 0;
-    return `<article class="menu-card ${sold ? 'soldout' : ''}"><div><div class="menu-name">${esc(displayName(item))}</div><div class="menu-fr">${esc(lang === 'fr' ? item.nameZh : item.nameFr)}</div></div><div class="menu-card-bottom"><div><div class="price">${euro(item.priceCents)}</div><div class="menu-fr">${esc(item.code)} · ${t(item.category)}${item.allergens ? ` · ${lang === 'fr' ? `${t('过敏原：')} ${displayAllergens(item.allergens)}` : `过敏原： ${item.allergens}`}` : ''}</div>${item.stock !== null ? `<div class="menu-fr">${sold ? t('沽清') : `${t('剩余')} ${item.stock}`}</div>` : ''}</div><button class="add-button" data-action="add-item" data-id="${item.id}" ${sold ? 'disabled' : ''} aria-label="${lang === 'fr' ? `Ajouter ${esc(item.nameFr)}` : `添加 ${esc(item.nameZh)}`}">${sold ? '×' : inBasket ? `+${inBasket}` : '+'}</button></div></article>`;
+    return `<article class="menu-card ${sold ? 'soldout' : ''}" ${sold ? '' : `data-action="add-item" data-id="${item.id}" role="button" tabindex="0"`}><div><div class="menu-name">${esc(displayName(item))}</div><div class="menu-fr">${esc(lang === 'fr' ? item.nameZh : item.nameFr)}</div></div><div class="menu-card-bottom"><div><div class="price">${euro(item.priceCents)}</div><div class="menu-fr">${esc(item.code)} · ${t(item.category)}${item.allergens ? ` · ${lang === 'fr' ? `${t('过敏原：')} ${displayAllergens(item.allergens)}` : `过敏原： ${item.allergens}`}` : ''}</div>${item.stock !== null ? `<div class="menu-fr">${sold ? t('沽清') : `${t('剩余')} ${item.stock}`}</div>` : ''}</div><button class="add-button" data-action="add-item" data-id="${item.id}" ${sold ? 'disabled' : ''} aria-label="${lang === 'fr' ? `Ajouter ${esc(item.nameFr)}` : `添加 ${esc(item.nameZh)}`}">${sold ? '×' : inBasket ? `+${inBasket}` : '+'}</button></div></article>`;
   }).join('');
 }
 
@@ -552,6 +552,17 @@ function renderKitchen() {
   return `${pageHead('后厨看单', '菜品上桌后自动移除；改菜和退菜会闪烁提示 10 秒。', `<div class="kitchen-tools"><select class="field-input" data-change="sort"><option value="time" ${sortMode === 'time' ? 'selected' : ''}>按下单时间</option><option value="table" ${sortMode === 'table' ? 'selected' : ''}>按桌号</option></select><button class="btn primary" data-action="fullscreen">⛶ 全屏显示</button></div>`, '后厨')}<div id="kitchen-screen" class="kitchen-layout"><div class="kitchen-board"><div class="kitchen-list">${renderKitchenCards()}</div></div><aside class="panel kitchen-aggregate sticky">${renderKitchenSummary(totals)}</aside><div class="kitchen-alerts" aria-live="assertive">${renderKitchenAlerts()}</div></div>`;
 }
 
+let expoDoneOpen = false;
+function renderExpoDone() {
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+  const done = (state.history || []).filter(h => (h.closedAt || '').slice(0, 10) === today);
+  if (!done.length) return '';
+  const body = expoDoneOpen
+    ? `<div class="expo-done-list">${done.map(h => `<button class="expo-done-row" data-action="history-detail" data-id="${h.id}"><b>${esc(h.displayCode)}</b><span>${h.kind === 'takeaway' ? '打包 / Emporter' : '堂食 / Sur place'}</span><span>${clock(h.openedAt)} → ${clock(h.closedAt)}</span><span class="minor">查看 / Voir ›</span></button>`).join('')}</div>`
+    : '';
+  return `<section class="expo-done"><button class="expo-done-head" data-action="toggle-expo-done"><b>今日已完单 / Terminés aujourd'hui</b><span class="badge blue">${done.length}</span><span class="minor">${expoDoneOpen ? '收起 / Masquer ▲' : '展开 / Afficher ▼'}</span></button>${body}</section>`;
+}
+
 function expoServiceCard(service) {
   const rows = serviceRows(service);
   const pending = pendingItems(service).reduce((sum, item) => sum + item.pendingQty, 0);
@@ -560,15 +571,15 @@ function expoServiceCard(service) {
   const tone = age >= state.settings.lateMinutes ? 'late' : age >= state.settings.warnMinutes ? 'overdue' : '';
   const tableZh = service.kind === 'takeaway' ? `打包单：${service.displayCode}` : `桌号：${service.displayCode}`;
   const tableFr = service.kind === 'takeaway' ? `À emporter ${service.displayCode.replace(/\D/g, '')}` : `Table ${service.displayCode}`;
-  const renderRow = item => `<div class="expo-line ${item.type === 'drink' ? 'drink' : ''}"><div><div class="expo-name">${esc(item.nameZh)} ×${item.qty}</div><div class="expo-fr">${esc(item.nameFr)}</div><div class="expo-qty">${item.type === 'drink' ? '饮品 / Boisson · ' : ''}已上桌 / Servi ${item.servedQty} · 待出 / À servir ${item.pendingQty}${item.cancelledQty ? ` · 退菜 / Annulé ${item.cancelledQty}` : ''}</div>${item.note ? `<div class="expo-note">备注 / Remarque : ${esc(displayNote(item.note, true))}</div>` : ''}${item.added ? '<span class="badge green">加菜 / Ajout</span>' : ''}${item.rush ? '<span class="badge red">催菜 / Urgent</span>' : ''}</div>${item.pendingQty && service.status === 'open' ? `<div class="row-actions"><button class="btn small primary" data-action="serve" data-id="${item.id}" data-qty="1">上桌 1 份<br>Servir 1</button>${item.pendingQty > 1 ? `<button class="btn small" data-action="serve" data-id="${item.id}" data-qty="${item.pendingQty}">全部<br>Tout</button>` : ''}</div>` : `<span class="badge ${item.servedQty ? 'green' : 'red'}">${item.servedQty ? '✓' : '退 / Annulé'}</span>`}</div>`;
+  const renderRow = item => `<div class="expo-line ${item.type === 'drink' ? 'drink' : ''}${!item.pendingQty && item.servedQty ? ' done' : ''}${!item.pendingQty && !item.servedQty ? ' voided' : ''}"><div><div class="expo-name">${esc(item.nameZh)} ×${item.qty}</div><div class="expo-fr">${esc(item.nameFr)}</div><div class="expo-qty">${item.type === 'drink' ? '饮品 / Boisson · ' : ''}已上桌 / Servi ${item.servedQty} · 待出 / À servir ${item.pendingQty}${item.cancelledQty ? ` · 退菜 / Annulé ${item.cancelledQty}` : ''}</div>${item.note ? `<div class="expo-note">备注 / Remarque : ${esc(displayNote(item.note, true))}</div>` : ''}${item.added ? '<span class="badge green">加菜 / Ajout</span>' : ''}${item.rush ? '<span class="badge red">催菜 / Urgent</span>' : ''}</div>${item.pendingQty && service.status === 'open' ? `<div class="row-actions"><button class="btn small primary" data-action="serve" data-id="${item.id}" data-qty="1">上桌 1 份<br>Servir 1</button>${item.pendingQty > 1 ? `<button class="btn small" data-action="serve" data-id="${item.id}" data-qty="${item.pendingQty}">全部<br>Tout</button>` : ''}</div>` : `<span class="badge ${item.servedQty ? 'green' : 'red'}">${item.servedQty ? '✓' : '退 / Annulé'}</span>`}</div>`;
   return `<article class="expo-card ${tone}"><div class="expo-head"><div><div class="expo-code">${esc(tableZh)}</div><div class="expo-code-fr">${esc(tableFr)}</div><div class="expo-meta">${formatBilingualPeople(service.covers)} · ${clock(service.openedAt)}</div></div><div style="text-align:right"><span class="badge ${pending ? 'amber' : 'blue'}">${pending} 待出 / À servir</span><div class="minor" style="margin-top:6px">${served} 已上桌 / Servi</div></div></div><div class="expo-content">${rows.length ? rows.map(renderRow).join('') : '<div class="empty">尚未下单 / Aucune commande</div>'}</div><div class="expo-foot">${pending ? `<button class="btn primary big" data-action="serve-all" data-id="${service.id}">✓ 一键上桌 ${formatBilingualPortions(pending)}</button>` : ''}<button class="btn ${pending ? '' : 'primary'} big" data-action="complete" data-id="${service.id}" ${pending || !rows.length ? 'disabled' : ''}>✓ 完单 / Terminer</button>${pending ? `<div class="hint">${pending} 份未上桌，逐份点击或一键上桌；全部上齐后点完单释放桌位。<br>${pending} ${pending === 1 ? 'portion' : 'portions'} à servir avant de terminer.</div>` : ''}</div></article>`;
 }
 
 function renderExpo() {
   const services = state.services.filter(s => s.orders.length).sort((a, b) => Date.parse(a.openedAt) - Date.parse(b.openedAt));
   const canUndo = undo && Date.now() - Date.parse(undo.at) < 10000;
-  const actions = '<button class="btn" data-action="go-stock">沽清 / Rupture</button><button class="btn" data-action="go-overview">今日概览 / Aujourd’hui</button><button class="btn" data-action="nav" data-view="admin">后台 / Gestion</button>';
-  return `${pageHead('出菜口 / Passe', '逐份上桌或一键上桌；全部上齐后点完单自动释放桌位。', actions, 'LE WEILAI / PASS')}${canUndo ? `<div class="undo"><span>刚才划单可撤销 / Annuler le dernier service</span><button class="btn small" data-action="undo">撤销 / Annuler</button></div>` : ''}${services.length ? `<div class="expo-grid">${services.map(expoServiceCard).join('')}</div>` : '<div class="empty">没有待出菜的服务单 / Aucune commande en cours</div>'}<div class="kitchen-alerts" aria-live="assertive">${renderKitchenAlerts()}</div>`;
+  const actions = '<button class="btn primary" data-action="fullscreen-expo">⛶ 全屏 / Plein écran</button><button class="btn" data-action="go-stock">沽清 / Rupture</button><button class="btn" data-action="go-overview">今日概览 / Aujourd’hui</button><button class="btn" data-action="nav" data-view="admin">后台 / Gestion</button>';
+  return `${pageHead('出菜口 / Passe', '逐份上桌或一键上桌；全部上齐后点完单自动释放桌位。', actions, 'LE WEILAI / PASS')}${canUndo ? `<div class="undo"><span>刚才划单可撤销 / Annuler le dernier service</span><button class="btn small" data-action="undo">撤销 / Annuler</button></div>` : ''}<div id="expo-screen">${renderExpoDone()}${services.length ? `<div class="expo-grid">${services.map(expoServiceCard).join('')}</div>` : '<div class="empty">没有待出菜的服务单 / Aucune commande en cours</div>'}</div><div class="kitchen-alerts" aria-live="assertive">${renderKitchenAlerts()}</div>`;
 }
 
 function renderAdminGate() {
@@ -785,6 +796,11 @@ document.addEventListener('click', async event => {
   if (action === 'complete') {
     if (!confirm('确认所有菜已经上齐，并将此单标为完单？\nTous les plats ont-ils été servis ?')) return;
     if (await mutate(`/api/services/${key}/complete`)) { undo = null; toast('已完单，桌位已自动释放 / Commande terminée'); render(); }
+    return;
+  }
+  if (action === 'toggle-expo-done') { expoDoneOpen = !expoDoneOpen; render(); return; }
+  if (action === 'fullscreen-expo') {
+    document.getElementById('expo-screen')?.requestFullscreen().catch(error => toast(error.message, true));
     return;
   }
   if (action === 'fullscreen') {
