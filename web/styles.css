@@ -356,3 +356,121 @@ a { color: var(--green); }
 .expo-served-brief { display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
   padding: 9px 4px 0; }
 .expo-served-chip { border: 0; font-size: 13px; padding: 6px 12px; }
+
+/* ===================================================================
+   出菜口重做：字大、留白紧、中法对比清楚
+   放在文件末尾，覆盖上面的旧规则
+   =================================================================== */
+
+/* 宽屏自动多排几列，别把卡片拉成一片空白 */
+.expo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+.expo-card { border: 2px solid #d3ded6; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: var(--shadow); }
+.expo-card.overdue { border-color: #e8a85f; }
+.expo-card.late { border-color: #dd5a52; }
+
+.expo-head { display: flex; justify-content: space-between; align-items: center;
+  gap: 10px; border-bottom: 2px solid #eef2ee; padding: 12px 14px; }
+.expo-code { font-weight: 900; font-size: 30px; line-height: 1.05; letter-spacing: -.02em;
+  display: flex; align-items: center; }
+.expo-meta { margin-top: 5px; font-size: 13px; color: #6b7c72; }
+.expo-seq { display: inline-grid; place-items: center; width: 27px; height: 27px; margin-right: 9px;
+  background: var(--green); color: #fff; font-size: 15px; font-weight: 900; border-radius: 99px; flex: none; }
+.expo-pending { font-size: 19px; font-weight: 900; white-space: nowrap; padding: 7px 12px;
+  border-radius: 9px; background: #fde9c8; color: #7d4a06; }
+.expo-pending.clear { background: var(--green-soft); color: var(--green); font-size: 16px; }
+
+.expo-content { padding: 8px 10px; display: grid; gap: 7px; }
+
+/* 还没上的菜：整行就是按钮 */
+.expo-line { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 12px 11px; border: 0; border-radius: 11px; background: #f7faf7; margin: 0; }
+.expo-line.tappable { cursor: pointer; background: #fff; border: 2px solid #c6ddcd;
+  -webkit-tap-highlight-color: transparent; user-select: none; transition: background .08s, transform .07s; }
+.expo-line.tappable:hover { background: var(--green-soft); border-color: #93c5a6; }
+.expo-line.tappable:active { background: #cfe8da; transform: scale(.985); }
+.expo-line.tappable:focus-visible { outline: 3px solid #80bca0; outline-offset: 2px; }
+.expo-line.drink { background: var(--blue-soft); border-color: #a9d6e8; }
+.expo-line.drink:active { background: #c6e4f1; }
+.expo-line-text { min-width: 0; flex: 1; }
+.expo-line-side { display: flex; align-items: center; gap: 8px; flex: none; }
+
+.expo-name { font-size: 24px; font-weight: 880; line-height: 1.2; letter-spacing: -.02em;
+  color: var(--ink); overflow-wrap: anywhere; }
+.expo-x { font-size: 24px; font-weight: 900; margin-left: 9px; color: var(--green); }
+.expo-fr { color: #55685d; font-size: 16px; margin-top: 3px; line-height: 1.3; overflow-wrap: anywhere; }
+.expo-note { color: #b4342d; font-size: 17px; font-weight: 820; margin-top: 6px; line-height: 1.35; }
+
+.expo-flag { display: inline-block; margin: 6px 6px 0 0; padding: 4px 9px; border-radius: 7px;
+  font-size: 13px; font-weight: 820; }
+.expo-flag.drink { background: #d9edf7; color: #155f86; }
+.expo-flag.add { background: var(--green-soft); color: var(--green); }
+.expo-flag.rush { background: #ffe0dd; color: #b4342d; }
+.expo-flag.ok { background: var(--green-soft); color: var(--green); font-size: 15px; padding: 6px 11px; }
+.expo-flag.void { background: #f0eceb; color: #8a7b79; font-size: 15px; padding: 6px 11px; }
+.expo-go { font-size: 17px; font-weight: 850; color: var(--green); white-space: nowrap; }
+.expo-all-btn { min-height: 52px; font-size: 16px; font-weight: 850; padding: 0 15px;
+  border: 2px solid var(--green); color: var(--green); background: var(--green-soft); white-space: nowrap; }
+.expo-undo-btn { min-height: 38px; font-size: 14px; padding: 0 12px; }
+
+/* 已上的菜折叠起来 */
+.expo-done-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center;
+  gap: 10px; padding: 11px 13px; border: 1px dashed #c6d2c8; border-radius: 10px;
+  background: #f3f6f3; color: #5d6f64; font-size: 16px; font-weight: 800; }
+.expo-caret { font-size: 14px; font-weight: 750; color: #7b8c81; }
+.expo-line.done { background: #f1f4f1; opacity: .72; }
+.expo-line.done .expo-name { font-size: 19px; text-decoration: line-through; color: #5f6f66; }
+.expo-line.done .expo-x { font-size: 19px; color: #6f8277; }
+.expo-line.done .expo-fr { font-size: 14px; }
+.expo-line.done.voided { opacity: .5; }
+
+.expo-foot { padding: 11px 12px; border-top: 2px solid #eef2ee; background: #fbfcfa; display: grid; gap: 8px; }
+.expo-main-btn { min-height: 60px; font-size: 20px; font-weight: 880; width: 100%; }
+.expo-foot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.expo-foot-row .btn { min-height: 50px; font-size: 16px; font-weight: 820; width: 100%; }
+.expo-hint { font-size: 14px; color: #6b7c72; line-height: 1.45; }
+
+/* ===================================================================
+   后厨：等待时间看得见，同菜汇总看得见
+   =================================================================== */
+.kitchen-seq { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-right: 10px;
+  background: var(--green); color: #fff; font-size: 18px; font-weight: 900; border-radius: 99px;
+  vertical-align: middle; }
+.kitchen-wait-time { padding: 7px 12px; border-radius: 9px; font-size: 20px; font-weight: 900;
+  background: #e8efe9; color: #3c4f44; white-space: nowrap; }
+.kitchen-wait-time.warn { background: #ffb02e; color: #3d2600; }
+.kitchen-wait-time.late { background: #d91f11; color: #fff; animation: wait-pulse 1s ease-in-out infinite; }
+@keyframes wait-pulse { 0%,100% { background: #d91f11; } 50% { background: #ff4034; } }
+
+.kitchen-aggregate { padding: 16px; }
+.kitchen-aggregate h2 { font-size: 22px; }
+.aggregate-row { border-bottom: 1px solid var(--line); padding: 12px 0; }
+.aggregate-row b { display: flex; justify-content: space-between; gap: 10px; font-size: 22px;
+  font-weight: 880; line-height: 1.25; }
+.aggregate-row small { color: #6b7c72; font-size: 14px; line-height: 1.4; display: block; margin-top: 4px; }
+#kitchen-screen:fullscreen .aggregate-row b { font-size: 26px; }
+#kitchen-screen:fullscreen .kitchen-wait-time { font-size: 24px; padding: 8px 14px; }
+
+/* ===================================================================
+   开台人数：直接点，不弹键盘
+   =================================================================== */
+.covers-pick { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; margin-top: 4px; }
+.covers-btn { min-height: 52px; border: 2px solid var(--line); background: #fff; color: var(--ink);
+  border-radius: 11px; font-size: 20px; font-weight: 850; -webkit-tap-highlight-color: transparent; }
+.covers-btn:hover { border-color: #93c5a6; background: var(--green-soft); }
+.covers-btn.active { border-color: var(--green); background: var(--green); color: #fff; }
+.covers-more { margin-top: 9px; }
+
+@media (max-width: 680px) {
+  .expo-grid { grid-template-columns: 1fr; }
+  .expo-name { font-size: 21px; }
+  .expo-foot-row { grid-template-columns: 1fr; }
+  .covers-pick { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* 后厨菜名要比计时器大，层级才对 */
+.kitchen-dish { font-size: 23px; line-height: 1.25; }
+.kitchen-note { font-size: 16px; margin-top: 8px; }
+.kitchen-code { font-size: 28px; }
+.kitchen-line { padding: 13px 2px; }
+#kitchen-screen:fullscreen .kitchen-dish { font-size: 30px; }
+.expo-grid-sub { margin-top: 10px; }
