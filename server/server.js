@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes, createHash, timingSafeEqual, scryptSync } from 'node:crypto';
 import {
   AppError, openDatabase, snapshot, getService, createService, discardService,
-  createOrder, servePortions, serveAll, undoServe, cancelPortions, changeItem, applyDueItemChanges, rushService,
+  createOrder, servePortions, serveAll, undoServe, unservePortions, cancelPortions, changeItem, applyDueItemChanges, rushService,
   completeService, moveOrMergeService, saveEmployee, saveMenuItem, setStock, setSettings, seedDemo, recordPrint, applyDailyReset, markCashed, reopenService
 } from './db.js';
 import { printOrder, printerConfigured } from './printer.js';
@@ -213,7 +213,7 @@ async function handle(req, res) {
   const menuMatch = path.match(/^\/api\/menu\/([^/]+)$/);
   const stockMatch = path.match(/^\/api\/menu\/([^/]+)\/stock$/);
   const serviceAction = path.match(/^\/api\/services\/([^/]+)\/(orders|rush|complete|discard|move|serve-all|cashed|reopen)$/);
-  const itemAction = path.match(/^\/api\/items\/([^/]+)\/(serve|cancel|change)$/);
+  const itemAction = path.match(/^\/api\/items\/([^/]+)\/(serve|unserve|cancel|change)$/);
   const undoAction = path.match(/^\/api\/serve-actions\/([^/]+)\/undo$/);
   const reprintAction = path.match(/^\/api\/orders\/([^/]+)\/reprint$/);
   const employeeMatch = path.match(/^\/api\/employees(?:\/([^/]+))?$/);
@@ -249,6 +249,7 @@ async function handle(req, res) {
       : discardService(db, serviceId, session.actor);
   } else if (itemAction && req.method === 'POST') {
     result = itemAction[2] === 'serve' ? servePortions(db, itemAction[1], body, session.actor)
+      : itemAction[2] === 'unserve' ? unservePortions(db, itemAction[1], body, session.actor)
       : itemAction[2] === 'change' ? changeItem(db, itemAction[1], body, session.actor)
       : cancelPortions(db, itemAction[1], body, session.actor);
   } else if (undoAction && req.method === 'POST') result = undoServe(db, undoAction[1], session.actor);

@@ -199,7 +199,8 @@ export function getService(db, serviceId) {
     cancel_reason AS cancelReason FROM order_items WHERE order_id=? ORDER BY rowid`);
   service.orders = orders.map(order => ({ ...order, items: fetchItems.all(order.id).map(itemRow) }));
   service.pendingChanges = db.prepare(`SELECT id,item_id AS itemId,kind,qty,new_qty AS newQty,
-    old_name AS oldName,new_name AS newName,actor,created_at AS createdAt,apply_at AS applyAt
+    old_name AS oldName,new_name AS newName,actor,created_at AS createdAt,apply_at AS applyAt,
+    (SELECT type FROM order_items WHERE id=item_id) AS itemType
     FROM item_change_requests WHERE service_id=? AND status='pending' ORDER BY created_at`).all(serviceId);
   return service;
 }
@@ -435,6 +436,34 @@ export function undoServe(db, actionId, actor = '出菜口') {
   });
 }
 
+// 出菜口划错了：把已上桌的份数退回「未上」。不受 10 秒撤销时限约束。
+export function unservePortions(db, itemId, input, actor = '出菜口') {
+  return transaction(db, () => {
+    const item = itemContext(db, itemId);
+    if (item.serviceStatus !== 'open') throw new AppError('此单已完单，请先在待收银里撤销完单', 409);
+    const qty = Number(input.qty ?? 1);
+    if (!Number.isInteger(qty) || qty < 1 || qty > item.served_qty) throw new AppError('撤销份数超过已上桌份数', 409);
+    const stamp = iso();
+    db.prepare('UPDATE order_items SET served_qty=served_qty-? WHERE id=?').run(qty, itemId);
+    // 按时间倒序核销对应的划单记录，保证账目一致
+    let remain = qty;
+    const actions = db.prepare(`SELECT id,qty FROM serve_actions WHERE item_id=? AND undone_at IS NULL
+      ORDER BY at DESC,rowid DESC`).all(itemId);
+    for (const action of actions) {
+      if (remain <= 0) break;
+      if (action.qty <= remain) {
+        db.prepare('UPDATE serve_actions SET undone_at=? WHERE id=?').run(stamp, action.id);
+        remain -= action.qty;
+      } else {
+        db.prepare('UPDATE serve_actions SET qty=qty-? WHERE id=?').run(remain, action.id);
+        remain = 0;
+      }
+    }
+    log(db, actor, '撤销上桌', { serviceId: item.serviceId, displayCode: item.displayCode, itemId, name: item.name_zh, qty });
+    return getService(db, item.serviceId);
+  });
+}
+
 export function cancelPortions(db, itemId, input, actor = '服务员') {
   return transaction(db, () => {
     const item = itemContext(db, itemId);
@@ -447,7 +476,8 @@ export function cancelPortions(db, itemId, input, actor = '服务员') {
     }
     const requestId = id();
     const createdAt = iso();
-    const applyAt = new Date(Date.now() + 10000).toISOString();
+    // 饮品不进后厨，退掉不需要通知，立即生效
+    const applyAt = new Date(Date.now() + (item.type === 'drink' ? 0 : 10000)).toISOString();
     db.prepare(`INSERT INTO item_change_requests
       (id,service_id,item_id,kind,qty,old_name,actor,created_at,apply_at)
       VALUES (?,?,?,'cancel',?,?,?,?,?)`)
@@ -483,7 +513,8 @@ export function changeItem(db, itemId, input, actor = '服务员') {
     }
     const requestId = id();
     const createdAt = iso();
-    const applyAt = new Date(Date.now() + 10000).toISOString();
+    // 饮品改单同样不经过后厨
+    const applyAt = new Date(Date.now() + (item.type === 'drink' && menu.type === 'drink' ? 0 : 10000)).toISOString();
     db.prepare(`INSERT INTO item_change_requests
       (id,service_id,item_id,kind,qty,new_menu_id,new_qty,note,old_name,new_name,actor,created_at,apply_at)
       VALUES (?,?,?,'change',?,?,?,?,?,?,?,?,?)`)
